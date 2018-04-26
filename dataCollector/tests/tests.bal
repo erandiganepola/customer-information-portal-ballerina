@@ -13,17 +13,17 @@ function beforeSuiteFunc() {
 @test:Config
 function test_dataCollectorSF() {
     endpoint http:Client httpClientEP{
-        url:"http://localhost:9090"
+        url: "http://localhost:9090"
     };
-    json jsonKeyList = ["AAALIFEPROD","AAAMAPROD"];
+    json jsonKeyList = ["AAALIFEPROD", "AAAMAPROD"];
 
     http:Request httpRequest = new;
     httpRequest.setJsonPayload(jsonKeyList);
     var out = httpClientEP->post("/collector/salesforce/", request = httpRequest);
-    match out{
+    match out {
         http:Response resp => io:println(resp.getJsonPayload());
         http:HttpConnectorError e => {
-            test:assertFail(msg=e.message);
+            test:assertFail(msg = e.message);
         }
     }
 }
@@ -32,15 +32,15 @@ function test_dataCollectorSF() {
 @test:Config
 function test_getActiveJiraKeys() {
     endpoint http:Client httpClientEP{
-        url:"http://localhost:9090"
+        url: "http://localhost:9090"
     };
 
     http:Request httpRequest = new;
     var out = httpClientEP->get("/collector/jira/keys", request = httpRequest);
-    match out{
+    match out {
         http:Response resp => io:println(resp.getJsonPayload());
         http:HttpConnectorError e => {
-            test:assertFail(msg=e.message);
+            test:assertFail(msg = e.message);
         }
     }
 }
@@ -50,3 +50,4 @@ function test_getActiveJiraKeys() {
 function afterSuiteFunc() {
     test:stopServices("dataCollector");
 }
+
