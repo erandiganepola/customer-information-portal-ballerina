@@ -19,52 +19,105 @@
 import ballerina/http;
 import ballerina/io;
 import sfdc;
+import jira7 as jira;
 import ballerina/log;
+import ballerina/config;
 
 endpoint sfdc:Client salesforceClientEP {
-    baseUrl:"https://wso2--wsbox.cs8.my.salesforce.com",
-    clientConfig:{
-        auth:{
-            scheme:"oauth",
+    baseUrl: "https://wso2--wsbox.cs8.my.salesforce.com",
+    clientConfig: {
+        auth: {
+            scheme: "oauth",
             accessToken:
             "00DL0000002ASPS!ASAAQNEFTkjpHA8irToqWJXOjxMV7e6T3q_SiL4EILcqVPmCybHx85R5bAQQTfuJ8eKG13wRhEVowZOexsJOrNgWG41MgHrV"
             ,
-            refreshToken:"",
-            clientId:"erandisf@wso2.com",
-            clientSecret:"salesforce123",
-            refreshUrl:""
+            refreshToken: "",
+            clientId: "",
+            clientSecret: "",
+            refreshUrl: ""
         }
     }
 };
-endpoint http:Listener listener {
-    port:9090
+
+endpoint jira:Client jiraClientEP {
+    clientConfig: {
+        url: "https://support-staging.wso2.com/jira",
+        auth: {
+            scheme: "basic",
+            username: config:getAsString("jira_username"),
+            password: config:getAsString("jira_password")
+        }
+    }
 };
+
+endpoint http:Listener listener {
+    port: 9090
+};
+
 @http:ServiceConfig {
-    endpoints:[listener],
-    basePath:"/collector"
+    endpoints: [listener],
+    basePath: "/collector"
 }
-service<http:Service> dataCollector bind listener {
+service<http:Service> realtimeCollector bind listener {
 
     @http:ResourceConfig {
-        methods:["POST"],
-        path:"/SF"
+        methods: ["POST"],
+        path: "/salesforce"
     }
-    fetchDataFromSF(endpoint caller, http:Request request) {
+    getDataFromSF(endpoint caller, http:Request request) {
 
-        json jiraKeyList = request.getJsonPayload() but {http:PayloadError => null};
-
-        string query_string = buildQueryFromTemplate(QUERY_TEMPLATE_GET_ACCOUNT_DETAILS_BY_JIRA_KEY, jiraKeyList);
         http:Response response = new;
-        var connectorResponse = salesforceClientEP->getQueryResult(query_string);
 
-        match connectorResponse{
-            json jsonResponse => {
-                io:println(jsonResponse);
-                response.setJsonPayload({"success":true, "response":jsonResponse});
-            }
-            sfdc:SalesforceConnectorError => response.setJsonPayload({"sucess":false, "response":null});
+        var payloadIn = request.getJsonPayload();
+        match payloadIn {
+            json jiraKeys => response.setJsonPayload(fetchSalesforceData(jiraKeys));
+            error => response.setJsonPayload({ "success": false, "response": null });
         }
+        _ = caller->respond(response);
+    }
 
+    @http:ResourceConfig {
+        methods: ["POST"],
+        path: "/salesforce/next"
+    }
+    getPaginatedDataFromSF(endpoint caller, http:Request request) {
+
+        http:Response response = new;
+
+        var payloadIn = request.getJsonPayload();
+        match payloadIn {
+            json nextRecordUrl => response.setJsonPayload(fetchSalesforceData(nextRecordUrl.toString()));
+            error => response.setJsonPayload({ "success": false, "response": null });
+        }
+        _ = caller->respond(response);
+    }
+
+    @http:ResourceConfig {
+        methods: ["GET"],
+        path: "/jira/keys"
+    }
+    getActiveJiraKeys(endpoint caller, http:Request request) {
+
+        http:Response response = new;
+
+        var connectorResponse = jiraClientEP->getAllProjectSummaries();
+        match connectorResponse {
+            jira:ProjectSummary[] summaryList => {
+
+                json[] projectKeys = [];
+                int i = 0;
+                foreach (project in summaryList){
+                    if(!project.name.hasPrefix("ZZZ")){
+                        projectKeys[i]=project.key;
+                        i+=1;
+                    }
+                }
+                response.setJsonPayload(projectKeys);
+                io:println(projectKeys);
+                io:println(i);
+            }
+            jira:JiraConnectorError e => response.setJsonPayload({ "success": false, "response": null });
+        }
         _ = caller->respond(response);
     }
 }
