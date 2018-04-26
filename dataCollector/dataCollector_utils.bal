@@ -24,8 +24,39 @@ function buildQueryFromTemplate(string template, json jiraKeys) returns string {
     foreach key in jiraKeys{
         key_tuple += "," + "'" + key.toString() + "'";
     }
-    key_tuple = key_tuple.replaceFirst(",","");
+    key_tuple = key_tuple.replaceFirst(",", "");
     key_tuple = "(" + key_tuple + ")";
     io:println(template.replace("<JIRA_KEY_LIST>", key_tuple));
     return template.replace("<JIRA_KEY_LIST>", key_tuple);
+}
+
+function fetchSalesforceData(string|json jiraKeysOrNextRecordUrl) returns json {
+
+    match jiraKeysOrNextRecordUrl {
+
+        string nextRecordUrl => {
+            var connectorResponse = salesforceClientEP->getNextQueryResult(nextRecordUrl);
+            match connectorResponse {
+                json jsonResponse => {
+                    io:println(jsonResponse);
+                    return { "success": true, "response": jsonResponse };
+                }
+                sfdc:SalesforceConnectorError e => return { "sucess": false, "response": null, "errorMessages": check
+                <json>e };
+            }
+        }
+
+        json jiraKeys => {
+            string SOQuery = buildQueryFromTemplate(QUERY_TEMPLATE_GET_ACCOUNT_DETAILS_BY_JIRA_KEY, jiraKeys);
+            var connectorResponse = salesforceClientEP->getQueryResult(SOQuery);
+            match connectorResponse {
+                json jsonResponse => {
+                    io:println(jsonResponse);
+                    return { "success": true, "response": jsonResponse };
+                }
+                sfdc:SalesforceConnectorError e => return { "sucess": false, "response": null, "errorMessages": check
+                <json>e };
+            }
+        }
+    }
 }
