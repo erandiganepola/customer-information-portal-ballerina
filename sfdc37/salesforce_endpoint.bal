@@ -41,6 +41,7 @@ public type Client object {
         P{{salesforceConfig}} salesforce connector configuration)
     }
     public function init(SalesforceConfiguration salesforceConfig) {
+        salesforceConfig.clientConfig.url = "https://wso2--wsbox.cs8.my.salesforce.com";
         self.salesforceConnector.httpClient.init(salesforceConfig.clientConfig);
     }
 
