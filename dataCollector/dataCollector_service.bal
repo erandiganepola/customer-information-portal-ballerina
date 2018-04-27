@@ -18,7 +18,7 @@
 
 import ballerina/http;
 import ballerina/io;
-import sfdc;
+import sfdc37 as sfdc;
 import jira7 as jira;
 import ballerina/log;
 import ballerina/config;
@@ -113,8 +113,6 @@ service<http:Service> realtimeCollector bind listener {
                     }
                 }
                 response.setJsonPayload(projectKeys);
-                io:println(projectKeys);
-                io:println(i);
             }
             jira:JiraConnectorError e => response.setJsonPayload({ "success": false, "response": null });
         }
