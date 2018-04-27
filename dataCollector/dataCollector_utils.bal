@@ -60,3 +60,33 @@ function fetchSalesforceData(string|json jiraKeysOrNextRecordUrl) returns json {
         }
     }
 }
+
+function categorizeJiraKeys(string[] newKeys, string[] previousKeys) returns json {
+
+    json result = { "upsert": [], "delete": [] };
+    int i_upsert = 0;
+    int i_delete = 0;
+
+    foreach (key in newKeys){
+        result["upsert"][i_upsert] = key;
+        i_upsert += 1;
+    }
+
+    foreach (key in previousKeys){
+        if (!hasJiraKey(newKeys, key)){ //update
+            result["delete"][i_delete] = key;
+            i_delete += 1;
+        }
+    }
+
+    return result;
+}
+
+function hasJiraKey(string[] list, string key) returns boolean {
+    foreach (item in list){
+        if (item == key){
+            return true;
+        }
+    }
+    return false;
+}

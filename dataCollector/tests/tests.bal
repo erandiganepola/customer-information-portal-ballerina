@@ -9,24 +9,24 @@ function beforeSuiteFunc() {
     io:println(status);
 }
 
-// Test function
-@test:Config
-function test_dataCollectorSF() {
-    endpoint http:Client httpClientEP{
-        url: "http://localhost:9090"
-    };
-    json jsonKeyList = ["AAALIFEPROD", "AAAMAPROD"];
-
-    http:Request httpRequest = new;
-    httpRequest.setJsonPayload(jsonKeyList);
-    var out = httpClientEP->post("/collector/salesforce/", request = httpRequest);
-    match out {
-        http:Response resp => io:println(resp.getJsonPayload());
-        http:HttpConnectorError e => {
-            test:assertFail(msg = e.message);
-        }
-    }
-}
+//// Test function
+//@test:Config
+//function test_dataCollectorSF() {
+//    endpoint http:Client httpClientEP{
+//        url: "http://localhost:9090"
+//    };
+//    json jsonKeyList = ["AAALIFEPROD", "AAAMAPROD"];
+//
+//    http:Request httpRequest = new;
+//    httpRequest.setJsonPayload(jsonKeyList);
+//    var out = httpClientEP->post("/collector/salesforce/", request = httpRequest);
+//    match out {
+//        http:Response resp => io:println(resp.getJsonPayload());
+//        error e => {
+//            test:assertFail(msg = e.message);
+//        }
+//    }
+//}
 
 // Test function
 @test:Config
@@ -39,7 +39,7 @@ function test_getActiveJiraKeys() {
     var out = httpClientEP->get("/collector/jira/keys", request = httpRequest);
     match out {
         http:Response resp => io:println(resp.getJsonPayload());
-        http:HttpConnectorError e => {
+        error e => {
             test:assertFail(msg = e.message);
         }
     }
@@ -50,4 +50,3 @@ function test_getActiveJiraKeys() {
 function afterSuiteFunc() {
     test:stopServices("dataCollector");
 }
-
