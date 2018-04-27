@@ -17,7 +17,6 @@
 //
 
 import ballerina/http;
-import ballerina/io;
 
 documentation{ Represents the Jira Client Connector Endpoint configuration.
     F{{clientConfig}} Http client endpoint configuration
@@ -41,11 +40,8 @@ public type Client object {
         P{{userConfig}} Jira connector endpoint configuration
     }
     public function init(JiraConfiguration userConfig) {
-        //io:println(userConfig.clientConfig.url);
-        userConfig.clientConfig.url = "https://support-staging.wso2.com/jira";
-        userConfig.clientConfig.url += JIRA_REST_API_RESOURCE + JIRA_REST_API_VERSION;
 
-        io:println(userConfig.clientConfig.url);
+        userConfig.clientConfig.url += JIRA_REST_API_RESOURCE + JIRA_REST_API_VERSION;
         userConfig.clientConfig.chunking = "NEVER";
         jiraConnector.jiraHttpClient.init(userConfig.clientConfig);
     }
