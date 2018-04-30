@@ -35,3 +35,21 @@
         Opportunity
     WHERE
         Id In(SELECT Opportunity_Name__c FROM Support_Account__c WHERE JIRA_Key__c In <JIRA_KEY_LIST>)";
+
+@final string QUERY_TEMPLATE = "
+SELECT
+        Id,
+        Account.Name,
+        Account.Account_Classification__c,
+        Account.Rating,
+        Opportunity.Account.Owner.Name,
+        Account.Technical_Owner__c,
+        Account.Industry,
+        Account.Phone,
+        Account.BillingAddress,
+        Account.Id,
+        (SELECT Id, Quantity, Environment__c, PricebookEntry.Name FROM OpportunityLineItems)
+    FROM
+        Opportunity
+    WHERE
+        Id In (SELECT Opportunity_Name__c FROM Support_Account__c WHERE JIRA_Key__c In ('AAALIFEPROD', 'AAAMAPROD'))";

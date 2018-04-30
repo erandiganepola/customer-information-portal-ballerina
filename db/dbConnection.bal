@@ -2,7 +2,12 @@ import ballerina/mysql;
 import ballerina/io;
 
 function main(string... args) {
+    map keys = { toBeDeleted: ["AAALIFEPROD", "AAAMAPROD"], toBeUpdated: ["AAALIFEPROD", "AAAMAPROD"] };
+    io:println(keys);
+    doTransaction(keys);
+}
 
+function doTransaction(map jiraKeys){
     endpoint mysql:Client testDBEP {
         host:"localhost",
         port:3306,
@@ -12,35 +17,32 @@ function main(string... args) {
         poolOptions:{maximumPoolSize:5}
     };
 
-    // Create the tables required for the transaction.
-    var ret = testDBEP -> update("CREATE TABLE IF NOT EXISTS temp_account (ID INT, Name VARCHAR(30))");
-    match ret {
-        int retInt => io:println("temp_account table create status in DB: " + retInt);
-        error err => {
-            handleError("temp_account table Creation failed: ", err, testDBEP);
-            return;
-        }
-    }
-    ret = testDBEP -> update("CREATE TABLE IF NOT EXISTS temp_product (ID INT, Name FLOAT)");
-    match ret {
-        int retInt => io:println("temp_product table create status in DB: " + retInt);
-        error err => {
-            handleError("temp_product table Creation failed: ", err, testDBEP);
-            return;
-        }
-    }
-        // Here is the transaction block. Any transacted action within the transaction block may
-        // return errors backend DB errors, connection pool errors, etc., You can decide whether
-        // to abort or retry based on the error returned. If you do not explicitly abort or retry,
-        // transaction will be automatically retried  until the retry count is reached and aborted.
-        // The retry count which is given with `retries` is the number of times the transaction
-        // is retried before aborting it. By default, a transaction is tried three times before
-        // aborting. Only integer literals or constants are allowed for `retry count`.
-        transaction with retries = 5, oncommit = onCommitFunction, onabort = onAbortFunction {
-        // This is the first action participant in the transaction.
-            var result = testDBEP->update("INSERT INTO temp_account(ID,Name) VALUES (1, 'Anne')");
-            // This is the second action participant in the transaction.
-            result = testDBEP->update("INSERT INTO temp_product (ID, Name) VALUES (1, 2500)");
+    string[] stringKeyList = ["AAALIFEPROD", "AAAMAPROD", "AAANGPROD"];
+    //string key = "AAALIFEPROD";
+    string name = "APIM";
+    string profile = "Business";
+    string count = "4";
+    string deployment = "DEV";
+
+    string customerName = "William";
+    string customerType = "Support";
+    string classification = "DEV";
+    string account_owner = "John";
+    string technical_owner = "Isuru";
+    string domain = "PROD";
+    string primary_contact = "+94112278456";
+    string timezone = "No:14AZ, CA, USA";
+
+    int|error result;
+    string[] toBeDeleted = check <string[]> jiraKeys["toBeDeleted"];
+    string[] toBeUpserted = check <string[]> jiraKeys["toBeUpserted"];
+
+    transaction with retries = 4, oncommit = onCommitFunction, onabort = onAbortFunction {
+
+        foreach key in toBeDeleted{
+            result = testDBEP -> update("DELETE FROM Opportunity_Products where JIRA_key = ?", key);
+            result = testDBEP -> update("DELETE FROM Account where JIRA_key = ?", key);
+
             match result {
                 int c => {
                     io:println("Inserted count: " + c);
@@ -51,84 +53,71 @@ function main(string... args) {
                 }
                 error err => {
                     // The transaction can be force retried using `retry` keyword at any time.
+                    io:println(err);
                     retry;
                 }
             }
-        // The end curly bracket marks the end of the transaction and the transaction will
-        // be committed or rolled back at this point.
-        } onretry {
-        // The onretry block will be executed whenever the transaction is retried until it
-        // reaches the retry count. Transaction could be re-tried if it fails due to an
-        // exception or a throw statement, or an explicit retry statement.
-            io:println("Retrying transaction");
         }
-//================================ Stored Procedure =============================================//
-    // A stored procedure can be invoked using the `call` action. The direction is
-    // used to specify `IN`/`OUT`/`INOUT` parameters.
 
-    var retrieve = testDBEP->update("CREATE TABLE IF NOT EXISTS cip(ID INT AUTO_INCREMENT,
-    Name VARCHAR(30), PRIMARY KEY (ID))");
+        foreach key in toBeUpserted {
+            result = testDBEP -> update("INSERT INTO Opportunity_Products
+                                            (JIRA_key, Product_name, Profile, Count, Deployment)
+                                        VALUES
+                                            (?,?,?,?,?)
+                                        ON DUPLICATE KEY UPDATE
+                                            JIRA_key = VALUES(JIRA_key),
+                                            Product_name = VALUES(Product_name),
+                                            Profile = VALUES(Profile),
+                                            Count = VALUES(Count),
+                                            Deployment = 'PROD'",
+                key, name, profile, count, deployment);
 
-    match retrieve {
-        int retInt => io:println("cip table create status in DB: " + retInt);
-        error err => {
-            handleError("cip table Creation failed: ", err, testDBEP);
-            return;
+            result = testDBEP -> update("INSERT INTO Account
+                                            (JIRA_key, Customer_name, Customer_type, Classification, Account_owner,
+                                            Technical_owner, Domain, Primary_contact, Timezone)
+                                        VALUES
+                                            (?,?,?,?,?,?,?,?,?)
+                                        ON DUPLICATE KEY UPDATE
+                                            JIRA_key = VALUES(JIRA_key),
+                                            Customer_name = VALUES(Customer_name),
+                                            Customer_type = VALUES(Customer_type),
+                                            Classification = VALUES(Classification),
+                                            Account_owner = VALUES(Account_owner),
+                                            Technical_owner = 'Nuwan',
+                                            Domain = VALUES(Domain),
+                                            Primary_contact = VALUES(Primary_contact),
+                                            Timezone = VALUES(Timezone)",
+                key, customerName, customerType, classification, account_owner,
+                technical_owner, domain, primary_contact, timezone);
+
+            match result {
+                int c => {
+                    io:println("Inserted count: " + c);
+                    // The transaction can be force aborted using the `abort` keyword at any time.
+                    if (c == 0) {
+                        abort;
+                    }
+                }
+                error err => {
+                    // The transaction can be force retried using `retry` keyword at any time.
+                    io:println(err);
+                    retry;
+                }
+            }
         }
+    } onretry {
+        io:println("Retrying transaction");
     }
-
-    // Create a stored procedure using the `update` action.
-    ret = testDBEP->update("CREATE PROCEDURE SETDATA (IN Name VARCHAR(30))
-                         BEGIN
-                         INSERT INTO cip(Name) VALUES (Name);
-                         END");
-    match ret {
-        int status => io:println("Stored proc creation status: " + status);
-        error err => {
-            handleError("SETDATA procedure creation failed: ", err, testDBEP);
-            return;
-        }
-    }
-
-    var results = testDBEP->call("{CALL SETDATA('Anne')}",());
-
-
-    // Drop the STUDENT table.
-    ret = testDBEP->update("DROP TABLE cip");
-    match ret {
-        int status => io:println("Table drop status: " + status);
-        error err => {
-            handleError("Dropping cip table failed: ", err, testDBEP);
-            return;
-        }
-    }
-
-    // Drop the SETDATA procedure.
-    ret = testDBEP->update("DROP PROCEDURE SETDATA");
-    match ret {
-        int status => io:println("Procedure drop status: " + status);
-        error err => {
-            handleError("Dropping SETDATA procedure failed: ", err, testDBEP);
-            return;
-        }
-    }
-
-    // Finally, close the connection pool.
     testDBEP.stop();
+}
 
-    }
+function onCommitFunction(string transactionId) {
+    io:println("Transaction: " + transactionId + " committed");
+}
 
-    // This is the function used as the commit handler of the transaction block. Any action which needs
-    // to perform once the transaction is committed should go here.
-    function onCommitFunction(string transactionId) {
-        io:println("Transaction: " + transactionId + " committed");
-    }
-
-    // This is the function used as the abort handler of the transaction block. Any action which needs
-    // to perform if the transaction is aborted should go here.
-    function onAbortFunction(string transactionId) {
-        io:println("Transaction: " + transactionId + " aborted");
-    }
+function onAbortFunction(string transactionId) {
+    io:println("Transaction: " + transactionId + " aborted");
+}
 
 function handleError(string message, error e, mysql:Client testDB) {
     io:println(message + e.message);
