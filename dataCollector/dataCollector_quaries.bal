@@ -52,4 +52,4 @@ SELECT
     FROM
         Opportunity
     WHERE
-        Id In (SELECT Opportunity_Name__c FROM Support_Account__c WHERE JIRA_Key__c In ('AAALIFEPROD', 'AAAMAPROD'))";
+        Id In (SELECT Opportunity_Name__c FROM Support_Account__c WHERE JIRA_Key__c In <JIRA_KEY_LIST>)";
