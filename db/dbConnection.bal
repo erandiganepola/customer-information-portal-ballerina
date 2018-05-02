@@ -1,51 +1,80 @@
 import ballerina/mysql;
 import ballerina/io;
 
+string key = "AAALIFEPROD";
+string name = "ABC";
+string profile = "XYZ";
+int count = 4;
+string deployment = "";
+string customerName = "ABCD";
+string customerType = "";
+string classification = "";
+string account_owner = "";
+string technical_owner = "";
+string domain = "";
+string primary_contact = "";
+string timezone = "";
+
+endpoint mysql:Client mysqlEP {
+    host:"localhost",
+    port:3306,
+    name:"test_cip",
+    username:"root",
+    password:"root",
+    poolOptions:{maximumPoolSize:5}
+};
+
+endpoint sfdc:Client salesforceClientEP {
+    baseUrl:"https://wso2--wsbox.cs8.my.salesforce.com",
+    clientConfig:{
+        auth:{
+            scheme:"oauth",
+            accessToken:
+            "00DL0000002ASPS!ASAAQNEFTkjpHA8irToqWJXOjxMV7e6T3q_SiL4EILcqVPmCybHx85R5bAQQTfuJ8eKG13wRhEVowZOexsJOrNgWG41MgHrV"
+            ,
+            refreshToken:"",
+            clientId:"",
+            clientSecret:"",
+            refreshUrl:""
+        }
+    }
+};
+
 function main(string... args) {
-    map keys = { toBeDeleted: ["AAALIFEPROD", "AAAMAPROD"], toBeUpdated: ["AAALIFEPROD", "AAAMAPROD"] };
+    map< string[] > keys = {"toBeDeleted":["AAALIFEPROD", "AAAMAPROD"], "toBeUpserted":["AAALIFEPROD", "AAAMAPROD"]};
     io:println(keys);
     doTransaction(keys);
 }
 
-function doTransaction(map jiraKeys){
-    endpoint mysql:Client testDBEP {
-        host:"localhost",
-        port:3306,
-        name:"test_cip",
-        username:"root",
-        password:"root",
-        poolOptions:{maximumPoolSize:5}
-    };
+function query(string[] jiraKeys) returns json[] {
+    string SOQuery = buildQueryFromTemplate(QUERY_TEMPLATE_GET_ACCOUNT_DETAILS_BY_JIRA_KEY, jiraKeys);
+    var connectorResponse = salesforceClientEP -> getQueryResult(SOQuery);
+    json[] records;
+    match connectorResponse {
+        json jsonResponse => {
+            io:println(jsonResponse);
+            records = check < json[]>jsonResponse.records;
+            return records;
+        }
+        sfdc:SalesforceConnectorError e => return [];
+    }
+}
 
-    string[] stringKeyList = ["AAALIFEPROD", "AAAMAPROD", "AAANGPROD"];
-    //string key = "AAALIFEPROD";
-    string name = "APIM";
-    string profile = "Business";
-    string count = "4";
-    string deployment = "DEV";
-
-    string customerName = "William";
-    string customerType = "Support";
-    string classification = "DEV";
-    string account_owner = "John";
-    string technical_owner = "Isuru";
-    string domain = "PROD";
-    string primary_contact = "+94112278456";
-    string timezone = "No:14AZ, CA, USA";
-
+function doTransaction(map jiraKeys) {
     int|error result;
-    string[] toBeDeleted = check <string[]> jiraKeys["toBeDeleted"];
-    string[] toBeUpserted = check <string[]> jiraKeys["toBeUpserted"];
+    string[] toBeDeleted = check < string[]>jiraKeys["toBeDeleted"];
+    string[] toBeUpserted = check < string[]>jiraKeys["toBeUpserted"];
+
+    json[] toUpsert = query(toBeUpserted);
 
     transaction with retries = 4, oncommit = onCommitFunction, onabort = onAbortFunction {
 
-        foreach key in toBeDeleted{
-            result = testDBEP -> update("DELETE FROM Opportunity_Products where JIRA_key = ?", key);
-            result = testDBEP -> update("DELETE FROM Account where JIRA_key = ?", key);
+        foreach deleteKey in toBeDeleted{
+            result = mysqlEP -> update("DELETE FROM Opportunity_Products where JIRA_key = ?", key);
+            result = mysqlEP -> update("DELETE FROM Account where JIRA_key = ?", key);
 
             match result {
                 int c => {
-                    io:println("Inserted count: " + c);
                     // The transaction can be force aborted using the `abort` keyword at any time.
                     if (c == 0) {
                         abort;
@@ -59,8 +88,8 @@ function doTransaction(map jiraKeys){
             }
         }
 
-        foreach key in toBeUpserted {
-            result = testDBEP -> update("INSERT INTO Opportunity_Products
+        foreach upsertKey in toBeUpserted {
+            result = mysqlEP -> update("INSERT INTO Opportunity_Products
                                             (JIRA_key, Product_name, Profile, Count, Deployment)
                                         VALUES
                                             (?,?,?,?,?)
@@ -72,7 +101,7 @@ function doTransaction(map jiraKeys){
                                             Deployment = 'PROD'",
                 key, name, profile, count, deployment);
 
-            result = testDBEP -> update("INSERT INTO Account
+            result = mysqlEP -> update("INSERT INTO Account
                                             (JIRA_key, Customer_name, Customer_type, Classification, Account_owner,
                                             Technical_owner, Domain, Primary_contact, Timezone)
                                         VALUES
@@ -108,7 +137,7 @@ function doTransaction(map jiraKeys){
     } onretry {
         io:println("Retrying transaction");
     }
-    testDBEP.stop();
+    mysqlEP.stop();
 }
 
 function onCommitFunction(string transactionId) {
