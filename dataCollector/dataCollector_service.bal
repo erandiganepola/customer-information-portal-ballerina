@@ -7,8 +7,8 @@
 // You may obtain a copy of the License at
 //
 // http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing,
+
+// Unless required by applicable law or agreed to in writing,//
 // software distributed under the License is distributed on an
 // "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
 // KIND, either express or implied.  See the License for the
@@ -24,17 +24,15 @@ import ballerina/log;
 import ballerina/config;
 
 endpoint sfdc:Client salesforceClientEP {
-    baseUrl: "https://wso2--wsbox.cs8.my.salesforce.com",
-    clientConfig: {
-        auth: {
-            scheme: "oauth",
-            accessToken:
-            "00DL0000002ASPS!ASAAQNEFTkjpHA8irToqWJXOjxMV7e6T3q_SiL4EILcqVPmCybHx85R5bAQQTfuJ8eKG13wRhEVowZOexsJOrNgWG41MgHrV"
-            ,
-            refreshToken: "",
-            clientId: "",
-            clientSecret: "",
-            refreshUrl: ""
+    clientConfig:{
+        url:"https://wso2--wsbox.cs8.my.salesforce.com",
+        auth:{
+            scheme:"oauth",
+            accessToken:"00DL0000002ASPS!ASAAQNEFTkjpHA8irToqWJXOjxMV7e6T3q_SiL4EILcqVPmCybHx85R5bAQQTfuJ8eKG13wRhEVowZOexsJOrNgWG41MgHrV",
+            refreshToken:"",
+            clientId:"",
+            clientSecret:"",
+            refreshUrl:""
         }
     }
 };
