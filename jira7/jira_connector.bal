@@ -18,7 +18,6 @@
 
 import ballerina/http;
 import ballerina/log;
-import ballerina/io;
 
 documentation{Represents Jira Client Connector Object}
 public type JiraConnector object {
@@ -118,7 +117,6 @@ public function JiraConnector::getAllProjectSummaries() returns ProjectSummary[]
     http:Request outRequest = new;
 
     var httpResponseOut = jiraHttpClientEP->get("/project?expand=description", request = outRequest);
-    io:println(httpResponseOut);
     //Evaluate http response for connection and server errors
     var jsonResponseOut = getValidatedResponse(httpResponseOut);
     match jsonResponseOut {
@@ -168,7 +166,7 @@ public function JiraConnector::getAllDetailsFromProjectSummary(ProjectSummary pr
 
         json jsonResponse => {
             jsonResponse.leadName = jsonResponse.lead != null ? jsonResponse.lead.name != null ?
-            jsonResponse.lead.name                                                             : null: null;
+                                    jsonResponse.lead.name: null: null;
             var projectOut = <Project>jsonResponse;
             match projectOut {
                 error err => return errorToJiraConnectorError(err);
@@ -281,7 +279,7 @@ public function JiraConnector::getProject(string projectIdOrKey) returns Project
 
         json jsonResponse => {
             jsonResponse.leadName = jsonResponse.lead != null ? jsonResponse.lead.name != null ?
-            jsonResponse.lead.name                                                             : null : null;
+                                    jsonResponse.lead.name: null : null;
             var projectOut = <Project>jsonResponse;
             match projectOut {
                 error err => return errorToJiraConnectorError(err);
