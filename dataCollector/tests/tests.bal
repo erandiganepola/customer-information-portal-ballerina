@@ -3,6 +3,10 @@ import ballerina/io;
 import ballerina/http;
 import ballerina/log;
 
+endpoint http:Client httpClientEP{
+    url: "http://localhost:9090"
+};
+
 // Before Suite Function is used to start the services
 @test:BeforeSuite
 function beforeSuiteFunc() {
@@ -13,9 +17,7 @@ function beforeSuiteFunc() {
 // Test function
 @test:Config
 function test_dataCollectorSF() {
-    endpoint http:Client httpClientEP{
-        url: "http://localhost:9090"
-    };
+    io:println("\n\n\n\n\n");
     log:printInfo("test_service_salesforceDataCollector");
 
     json jsonKeyList = ["AAALIFEPROD", "AAAMAPROD"];
@@ -34,11 +36,9 @@ function test_dataCollectorSF() {
 // Test function
 @test:Config
 function test_getActiveJiraKeys() {
-    endpoint http:Client httpClientEP{
-        url: "http://localhost:9090"
-    };
-
+   io:println("\n\n\n\n\n");
     log:printInfo("test_service_getActiveJiraKeys()");
+
     http:Request httpRequest = new;
     var out = httpClientEP->get("/collector/jira/keys", request = httpRequest);
     match out {
@@ -51,9 +51,12 @@ function test_getActiveJiraKeys() {
 
 @test:Config
 function test_categorizeJiraKeys() {
+    io:println("\n\n\n\n\n");
     log:printInfo("test_function_categorieJiraKeys()");
+
     string[] newKeys = ["KEY1","KEY2"];
     string[] currentKeys = ["KEY2","KEY3"];
+
     map result = categorizeJiraKeys(newKeys, currentKeys);
     io:println(result);
 }
