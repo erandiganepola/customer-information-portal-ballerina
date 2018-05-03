@@ -68,27 +68,48 @@ function doTransaction(map jiraKeys) {
     json[] toUpsert = query(toBeUpserted);
 
     transaction with retries = 4, oncommit = onCommitFunction, onabort = onAbortFunction {
+        // Get Opportunity Ids by jira keys
+        "SELECT opportunity_id FROM SupportAccount WHERE jira_key in <JIRA_KEY_LIST>";
+        string[] opportunityIds = [];
 
-        foreach deleteKey in toBeDeleted{
-            result = mysqlEP -> update("DELETE FROM Opportunity_Products where JIRA_key = ?", key);
-            result = mysqlEP -> update("DELETE FROM Account where JIRA_key = ?", key);
+        // Out of those Opportunity Ids, find which are not used in other Support Accounts
+        "SELECT opportunity_id FROM SupportAccount WHERE opportunity_id IN <IDS> GROUP BY opportunity_id
+        HAVING count(opportunity_id)=1";
+        string[] newOpportunityIds = [];
 
-            match result {
-                int c => {
-                    // The transaction can be force aborted using the `abort` keyword at any time.
-                    if (c == 0) {
-                        abort;
-                    }
+        // Get Account Ids to be deleted
+        "SELECT account_id FROM Opportunity WHERE opportunity_id IN <IDS>";
+        string[] accountIds = [];
+
+        // Find account Ids, that don't have other opportunities.
+        "SELECT account_id FROM Opportunity WHERE account_id IN <IDS> GROUP BY account_id
+        HAVING count(account_id)=1";
+        string[] newAccountIds = [];
+
+
+        result = mysqlEP -> update(buildQueryFromTemplateString(
+                                       "DELETE FROM SupportAccount where jira_key IN <JIRA_KEY_LIST>", toBeDeleted));
+        "DELETE FROM Account WHERE account_id IN <IDS>";
+        "DELETE FROM Opportunity WHERE opportunity_id IN <IDS>";
+        // Can do this with "ON DELETE CASCADE"
+        "DELETE FROM OpportunityProducts WHERE opportunity_id IN <IDS>";
+
+        match result {
+            int c => {
+                // The transaction can be force aborted using the `abort` keyword at any time.
+                if (c == 0) {
+                    abort;
                 }
-                error err => {
-                    // The transaction can be force retried using `retry` keyword at any time.
-                    io:println(err);
-                    retry;
-                }
+            }
+            error err => {
+                // The transaction can be force retried using `retry` keyword at any time.
+                io:println(err);
+                retry;
             }
         }
 
         foreach upsertKey in toBeUpserted {
+            // START TRANSACTION
             result = mysqlEP -> update("INSERT INTO Opportunity_Products
                                             (JIRA_key, Product_name, Profile, Count, Deployment)
                                         VALUES
@@ -137,7 +158,6 @@ function doTransaction(map jiraKeys) {
     } onretry {
         io:println("Retrying transaction");
     }
-    mysqlEP.stop();
 }
 
 function onCommitFunction(string transactionId) {

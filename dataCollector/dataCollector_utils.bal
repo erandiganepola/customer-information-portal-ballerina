@@ -19,10 +19,20 @@
 import ballerina/io;
 
 function buildQueryFromTemplate(string template, json jiraKeys) returns string {
-
     string key_tuple = EMPTY_STRING;
     foreach key in jiraKeys{
         key_tuple += "," + "'" + key.toString() + "'";
+    }
+    key_tuple = key_tuple.replaceFirst(",", "");
+    key_tuple = "(" + key_tuple + ")";
+    io:println(template.replace("<JIRA_KEY_LIST>", key_tuple));
+    return template.replace("<JIRA_KEY_LIST>", key_tuple);
+}
+
+function buildQueryFromTemplateString(string template, string[] jiraKeys) returns string {
+    string key_tuple = EMPTY_STRING;
+    foreach key in jiraKeys{
+        key_tuple += "," + "'" + key + "'";
     }
     key_tuple = key_tuple.replaceFirst(",", "");
     key_tuple = "(" + key_tuple + ")";
