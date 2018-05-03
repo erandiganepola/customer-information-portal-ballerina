@@ -16,28 +16,8 @@
 // under the License.
 //
 
-@final string QUERY_TEMPLATE_GET_ACCOUNT_DETAILS_BY_JIRA_KEY = "
+@final string QUERY_TEMPLATE_GET_SALESFORCE_DATA_BY_JIRA_KEY = "
     SELECT
-        Id,
-        Account.name,
-        Account.billingAddress,
-        Account.Id
-    FROM
-        Opportunity
-    WHERE
-        Id In (SELECT Opportunity_Name__c FROM Support_Account__c WHERE JIRA_Key__c In <JIRA_KEY_LIST>)";
-
-@final string QUERY_TEMPLATE_GET_OPPORTUNITY_PRODUCT_DETAILS_BY_JIRA_KEY = "
-    SELECT
-        Id,
-        (SELECT Quantity, Environment__c,PricebookEntry.Product2.Name, PricebookEntry.Name FROM OpportunityLineItems)
-    FROM
-        Opportunity
-    WHERE
-        Id In(SELECT Opportunity_Name__c FROM Support_Account__c WHERE JIRA_Key__c In <JIRA_KEY_LIST>)";
-
-@final string QUERY_TEMPLATE = "
-SELECT
         Id,
         Account.Name,
         Account.Account_Classification__c,
