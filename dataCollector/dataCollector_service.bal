@@ -25,25 +25,25 @@ import ballerina/config;
 
 endpoint sfdc:Client salesforceClientEP {
     clientConfig:{
-        url:"https://wso2--wsbox.cs8.my.salesforce.com",
+        url:config:getAsString("SALESFORCE_ENDPOINT"),
         auth:{
             scheme:"oauth",
-            accessToken:"00DL0000002ASPS!ASAAQNEFTkjpHA8irToqWJXOjxMV7e6T3q_SiL4EILcqVPmCybHx85R5bAQQTfuJ8eKG13wRhEVowZOexsJOrNgWG41MgHrV",
-            refreshToken:"",
-            clientId:"",
-            clientSecret:"",
-            refreshUrl:""
+            accessToken:config:getAsString("SALESFORCE_ACCESS_TOKEN"),
+            refreshToken:config:getAsString("SALESFORCE_REFRESH_TOKEN"),
+            clientId:config:getAsString("SALESFORCE_CLIENT_ID"),
+            clientSecret:config:getAsString("SALESFORCE_CLIENT_SECRET"),
+            refreshUrl:config:getAsString("SALESFORCE_REFRESH_URL")
         }
     }
 };
 
 endpoint jira:Client jiraClientEP {
     clientConfig: {
-        url: "https://support-staging.wso2.com/jira",
+        url: config:getAsString("JIRA_ENDPOINT"),
         auth: {
             scheme: "basic",
-            username: config:getAsString("jira_username"),
-            password: config:getAsString("jira_password")
+            username: config:getAsString("JIRA_USERNAME"),
+            password: config:getAsString("JIRA_PASSWORD")
         }
     }
 };
