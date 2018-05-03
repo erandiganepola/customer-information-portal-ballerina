@@ -16,6 +16,8 @@ function test_dataCollectorSF() {
     endpoint http:Client httpClientEP{
         url: "http://localhost:9090"
     };
+    log:printInfo("test_service_salesforceDataCollector");
+
     json jsonKeyList = ["AAALIFEPROD", "AAAMAPROD"];
 
     http:Request httpRequest = new;
@@ -36,7 +38,7 @@ function test_getActiveJiraKeys() {
         url: "http://localhost:9090"
     };
 
-    log:printInfo("test_function_getActiveJiraKeys()");
+    log:printInfo("test_service_getActiveJiraKeys()");
     http:Request httpRequest = new;
     var out = httpClientEP->get("/collector/jira/keys", request = httpRequest);
     match out {

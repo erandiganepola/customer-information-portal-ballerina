@@ -18,12 +18,23 @@
 
 import ballerina/io;
 
-function buildQueryFromTemplate(string template, json jiraKeys) returns string {
+function buildQueryFromTemplate(string template, json|string[] jiraKeys) returns string {
 
     string key_tuple = EMPTY_STRING;
-    foreach key in jiraKeys{
-        key_tuple += "," + "'" + key.toString() + "'";
+    match jiraKeys {
+        json jsonJiraKeys=> {
+            foreach key in jsonJiraKeys{
+                key_tuple += "," + "'" + key.toString() + "'";
+            }
+        }
+
+        string[] stringJiraKeys=> {
+            foreach key in stringJiraKeys{
+                key_tuple += "," + "'" + key + "'";
+            }
+        }
     }
+
     key_tuple = key_tuple.replaceFirst(",", "");
     key_tuple = "(" + key_tuple + ")";
     io:println(template.replace("<JIRA_KEY_LIST>", key_tuple));
