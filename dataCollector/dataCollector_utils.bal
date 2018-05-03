@@ -54,31 +54,33 @@ function fetchSalesforceData(string|json jiraKeysOrNextRecordUrl) returns json {
                     io:println(jsonResponse);
                     return { "success": true, "response": jsonResponse };
                 }
-                sfdc:SalesforceConnectorError e => return { "sucess": false, "response": null, "errorMessages": check
-                <json>e };
+                sfdc:SalesforceConnectorError e => return { "sucess": false, "response": null, "errorMessages": check <
+                json>e };
             }
         }
     }
 }
 
-function categorizeJiraKeys(string[] newKeys, string[] previousKeys) returns json {
+function categorizeJiraKeys(string[] newKeys, string[] previousKeys) returns map {
 
-    json result = { "upsert": [], "delete": [] };
+    string[] toBeUpserted = [];
+    string[] toBeDeleted = [];
     int i_upsert = 0;
     int i_delete = 0;
 
     foreach (key in newKeys){
-        result["upsert"][i_upsert] = key;
+        toBeUpserted[i_upsert] = key;
         i_upsert += 1;
     }
 
     foreach (key in previousKeys){
         if (!hasJiraKey(newKeys, key)){ //update
-            result["delete"][i_delete] = key;
+            toBeDeleted[i_delete] = key;
             i_delete += 1;
         }
     }
 
+    map result = { "toBeUpserted": toBeUpserted, "toBeDeleted": toBeDeleted };
     return result;
 }
 
