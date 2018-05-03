@@ -64,7 +64,7 @@ function fetchSalesforceData(string|json jiraKeysOrNextRecordUrl) returns json {
         }
 
         json jiraKeys => {
-            string SOQuery = buildQueryFromTemplate(QUERY_TEMPLATE_GET_ACCOUNT_DETAILS_BY_JIRA_KEY, jiraKeys);
+            string SOQuery = buildQueryFromTemplate(QUERY_TEMPLATE_GET_SALESFORCE_DATA_BY_JIRA_KEY, jiraKeys);
             var connectorResponse = salesforceClientEP->getQueryResult(SOQuery);
             match connectorResponse {
                 json jsonResponse => {
