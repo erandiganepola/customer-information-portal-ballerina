@@ -23,13 +23,13 @@ function buildQueryFromTemplate(string template, json|string[] jiraKeys) returns
 
     string key_tuple = EMPTY_STRING;
     match jiraKeys {
-        json jsonJiraKeys=> {
+        json jsonJiraKeys => {
             foreach key in jsonJiraKeys{
                 key_tuple += "," + "'" + key.toString() + "'";
             }
         }
 
-        string[] stringJiraKeys=> {
+        string[] stringJiraKeys => {
             foreach key in stringJiraKeys{
                 key_tuple += "," + "'" + key + "'";
             }
@@ -38,19 +38,12 @@ function buildQueryFromTemplate(string template, json|string[] jiraKeys) returns
 
     key_tuple = key_tuple.replaceFirst(",", "");
     key_tuple = "(" + key_tuple + ")";
-    io:println(template.replace("<JIRA_KEY_LIST>", key_tuple));
-    return template.replace("<JIRA_KEY_LIST>", key_tuple);
-}
 
-function buildQueryFromTemplateString(string template, string[] jiraKeys) returns string {
-    string key_tuple = EMPTY_STRING;
-    foreach key in jiraKeys{
-        key_tuple += "," + "'" + key + "'";
-    }
-    key_tuple = key_tuple.replaceFirst(",", "");
-    key_tuple = "(" + key_tuple + ")";
-    io:println(template.replace("<JIRA_KEY_LIST>", key_tuple));
-    return template.replace("<JIRA_KEY_LIST>", key_tuple);
+    string resultQuery = template.replace("<JIRA_KEY_LIST>", key_tuple);
+    io:println("######################################### QUERY #####################################################");
+    io:println(resultQuery);
+    io:println("#####################################################################################################");
+    return resultQuery;
 }
 
 function fetchSalesforceData(string|json jiraKeysOrNextRecordUrl) returns json {
@@ -64,8 +57,9 @@ function fetchSalesforceData(string|json jiraKeysOrNextRecordUrl) returns json {
                     io:println(jsonResponse);
                     return { "success": true, "response": jsonResponse };
                 }
-                sfdc:SalesforceConnectorError e => return { "sucess": false, "response": null, "errorMessages": check
-                <json>e };
+                sfdc:SalesforceConnectorError e => {
+                    return { "sucess": false, "response": null, "errorMessages": check <json>e };
+                }
             }
         }
 
@@ -84,7 +78,7 @@ function fetchSalesforceData(string|json jiraKeysOrNextRecordUrl) returns json {
     }
 }
 
-function categorizeJiraKeys(string[] newKeys, string[] previousKeys) returns map {
+function categorizeJiraKeys(string[] newKeys, string[] currentKeys) returns map {
 
     string[] toBeUpserted = [];
     string[] toBeDeleted = [];
@@ -96,7 +90,7 @@ function categorizeJiraKeys(string[] newKeys, string[] previousKeys) returns map
         i_upsert += 1;
     }
 
-    foreach (key in previousKeys){
+    foreach (key in currentKeys){
         if (!hasJiraKey(newKeys, key)){ //update
             toBeDeleted[i_delete] = key;
             i_delete += 1;
@@ -115,3 +109,4 @@ function hasJiraKey(string[] list, string key) returns boolean {
     }
     return false;
 }
+
