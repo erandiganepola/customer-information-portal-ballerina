@@ -19,7 +19,7 @@
 import ballerina/io;
 
 
-function buildQueryFromTemplate(string template, json|string[] jiraKeys) returns string {
+public function buildQueryFromTemplate(string template, json|string[] jiraKeys) returns string {
 
     string key_tuple = EMPTY_STRING;
     match jiraKeys {
@@ -46,7 +46,7 @@ function buildQueryFromTemplate(string template, json|string[] jiraKeys) returns
     return resultQuery;
 }
 
-function fetchSalesforceData(string|json jiraKeysOrNextRecordUrl) returns json {
+public function fetchSalesforceData(string|json jiraKeysOrNextRecordUrl) returns json {
 
     match jiraKeysOrNextRecordUrl {
 
@@ -78,7 +78,7 @@ function fetchSalesforceData(string|json jiraKeysOrNextRecordUrl) returns json {
     }
 }
 
-function categorizeJiraKeys(string[] newKeys, string[] currentKeys) returns map {
+public function categorizeJiraKeys(string[] newKeys, string[] currentKeys) returns map {
 
     string[] toBeUpserted = [];
     string[] toBeDeleted = [];
