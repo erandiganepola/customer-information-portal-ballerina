@@ -16,7 +16,7 @@
 // under the License.
 //
 
-type opportunityProductDetails {
+type OpportunityProductDetails {
     string name;
     string profile;
     string count;
@@ -25,7 +25,7 @@ type opportunityProductDetails {
     string supportAccountType;
 };
 
-type salesforeAccountDetails {
+type SalesforeAccountDetails {
     string customerName;
     string customerType;
     string classification;
