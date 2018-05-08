@@ -69,7 +69,7 @@ service<http:Service> realtimeCollector bind listener {
         var payloadIn = request.getJsonPayload();
         match payloadIn {
             json jiraKeys => response.setJsonPayload(fetchSalesforceData(jiraKeys));
-            error => response.setJsonPayload({ "success": false, "response": null });
+            error e => response.setJsonPayload({ "success": false, "response": null, "error":e.message });
         }
         _ = caller->respond(response);
     }
@@ -85,7 +85,7 @@ service<http:Service> realtimeCollector bind listener {
         var payloadIn = request.getJsonPayload();
         match payloadIn {
             json nextRecordUrl => response.setJsonPayload(fetchSalesforceData(nextRecordUrl.toString()));
-            error => response.setJsonPayload({ "success": false, "response": null });
+            error e => response.setJsonPayload({ "success": false, "response": null , "error":e.message});
         }
         _ = caller->respond(response);
     }
@@ -112,7 +112,7 @@ service<http:Service> realtimeCollector bind listener {
                 }
                 response.setJsonPayload(projectKeys);
             }
-            jira:JiraConnectorError e => response.setJsonPayload({ "success": false, "response": null });
+            jira:JiraConnectorError e => response.setJsonPayload({ "success": false, "response": null, "error":e.message });
         }
         _ = caller->respond(response);
     }
