@@ -40,9 +40,7 @@ public function buildQueryFromTemplate(string template, json|string[] jiraKeys) 
     key_tuple = "(" + key_tuple + ")";
 
     string resultQuery = template.replace("<JIRA_KEY_LIST>", key_tuple);
-    io:println("######################################### QUERY #####################################################");
     io:println(resultQuery);
-    io:println("#####################################################################################################");
     return resultQuery;
 }
 
