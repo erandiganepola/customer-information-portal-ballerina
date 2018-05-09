@@ -18,7 +18,6 @@
 
 import ballerina/io;
 
-
 public function buildQueryFromTemplate(string template, json|string[] jiraKeys) returns string {
 
     string key_tuple = EMPTY_STRING;
@@ -56,7 +55,7 @@ public function fetchSalesforceData(string|json jiraKeysOrNextRecordUrl) returns
                     return { "success": true, "response": jsonResponse };
                 }
                 sfdc:SalesforceConnectorError e => {
-                    return { "sucess": false, "response": null, "errorMessages": check <json>e };
+                    return { "sucess": false, "response": null, "error": check <json>e };
                 }
             }
         }
@@ -69,8 +68,7 @@ public function fetchSalesforceData(string|json jiraKeysOrNextRecordUrl) returns
                     io:println(jsonResponse);
                     return { "success": true, "response": jsonResponse };
                 }
-                sfdc:SalesforceConnectorError e => return { "sucess": false, "response": null, "errorMessages": check <
-                json>e };
+                sfdc:SalesforceConnectorError e => return { "sucess": false, "response": null, "error": check <json>e };
             }
         }
     }
