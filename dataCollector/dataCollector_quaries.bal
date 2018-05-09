@@ -28,6 +28,7 @@
         Account.Phone,
         Account.BillingAddress,
         Account.Id,
+        (SELECT ID, JIRA_Key__c, Start_Date__c, End_Date__c from Support_Accounts__r),
         (SELECT Id, Quantity, Environment__c, PricebookEntry.Name FROM OpportunityLineItems)
     FROM
         Opportunity
