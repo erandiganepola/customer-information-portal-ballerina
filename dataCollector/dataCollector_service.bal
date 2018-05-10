@@ -24,15 +24,15 @@ import ballerina/log;
 import ballerina/config;
 
 endpoint sfdc:Client salesforceClientEP {
-    clientConfig:{
-        url:config:getAsString("SALESFORCE_ENDPOINT"),
-        auth:{
-            scheme:"oauth",
-            accessToken:config:getAsString("SALESFORCE_ACCESS_TOKEN"),
-            refreshToken:config:getAsString("SALESFORCE_REFRESH_TOKEN"),
-            clientId:config:getAsString("SALESFORCE_CLIENT_ID"),
-            clientSecret:config:getAsString("SALESFORCE_CLIENT_SECRET"),
-            refreshUrl:config:getAsString("SALESFORCE_REFRESH_URL")
+    clientConfig: {
+        url: config:getAsString("SALESFORCE_ENDPOINT"),
+        auth: {
+            scheme: "oauth",
+            accessToken: config:getAsString("SALESFORCE_ACCESS_TOKEN"),
+            refreshToken: config:getAsString("SALESFORCE_REFRESH_TOKEN"),
+            clientId: config:getAsString("SALESFORCE_CLIENT_ID"),
+            clientSecret: config:getAsString("SALESFORCE_CLIENT_SECRET"),
+            refreshUrl: config:getAsString("SALESFORCE_REFRESH_URL")
         }
     }
 };
@@ -49,14 +49,14 @@ endpoint jira:Client jiraClientEP {
 };
 
 endpoint http:Listener listener {
-    port: 9090
+    port: config:getAsInt("DATA_COLLECTOR_PORT")
 };
 
 @http:ServiceConfig {
     endpoints: [listener],
     basePath: "/collector"
 }
-service<http:Service> realtimeCollector bind listener {
+service<http:Service> dataCollector bind listener {
 
     @http:ResourceConfig {
         methods: ["POST"],
@@ -69,7 +69,7 @@ service<http:Service> realtimeCollector bind listener {
         var payloadIn = request.getJsonPayload();
         match payloadIn {
             json jiraKeys => response.setJsonPayload(fetchSalesforceData(jiraKeys));
-            error e => response.setJsonPayload({ "success": false, "response": null, "error":e.message });
+            error e => response.setJsonPayload({ "success": false, "response": null, "error": e.message });
         }
         _ = caller->respond(response);
     }
@@ -85,7 +85,7 @@ service<http:Service> realtimeCollector bind listener {
         var payloadIn = request.getJsonPayload();
         match payloadIn {
             json nextRecordUrl => response.setJsonPayload(fetchSalesforceData(nextRecordUrl.toString()));
-            error e => response.setJsonPayload({ "success": false, "response": null , "error":e.message});
+            error e => response.setJsonPayload({ "success": false, "response": null, "error": e.message });
         }
         _ = caller->respond(response);
     }
@@ -101,7 +101,6 @@ service<http:Service> realtimeCollector bind listener {
         var connectorResponse = jiraClientEP->getAllProjectSummaries();
         match connectorResponse {
             jira:ProjectSummary[] summaryList => {
-
                 json[] projectKeys = [];
                 int i = 0;
                 foreach (project in summaryList){
@@ -110,7 +109,7 @@ service<http:Service> realtimeCollector bind listener {
                         i+=1;
                     }
                 }
-                response.setJsonPayload(projectKeys);
+                response.setJsonPayload({ "success": true, "response": projectKeys, "error":null });
             }
             jira:JiraConnectorError e => response.setJsonPayload({ "success": false, "response": null, "error":e.message });
         }
