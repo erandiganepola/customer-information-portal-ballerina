@@ -18,7 +18,6 @@
 
 import ballerina/io;
 
-
 public function buildQueryFromTemplate(string template, json|string[] jiraKeys) returns string {
 
     string key_tuple = EMPTY_STRING;
@@ -40,9 +39,7 @@ public function buildQueryFromTemplate(string template, json|string[] jiraKeys) 
     key_tuple = "(" + key_tuple + ")";
 
     string resultQuery = template.replace("<JIRA_KEY_LIST>", key_tuple);
-    io:println("######################################### QUERY #####################################################");
     io:println(resultQuery);
-    io:println("#####################################################################################################");
     return resultQuery;
 }
 
@@ -58,7 +55,7 @@ public function fetchSalesforceData(string|json jiraKeysOrNextRecordUrl) returns
                     return { "success": true, "response": jsonResponse };
                 }
                 sfdc:SalesforceConnectorError e => {
-                    return { "sucess": false, "response": null, "errorMessages": check <json>e };
+                    return { "sucess": false, "response": null, "error": check <json>e };
                 }
             }
         }
@@ -71,8 +68,7 @@ public function fetchSalesforceData(string|json jiraKeysOrNextRecordUrl) returns
                     io:println(jsonResponse);
                     return { "success": true, "response": jsonResponse };
                 }
-                sfdc:SalesforceConnectorError e => return { "sucess": false, "response": null, "errorMessages": check <
-                json>e };
+                sfdc:SalesforceConnectorError e => return { "sucess": false, "response": null, "error": check <json>e };
             }
         }
     }

@@ -16,22 +16,26 @@
 // under the License.
 //
 
-type OpportunityProductDetails {
-    string name;
-    string profile;
-    string count;
-    string deployment;
-    string supportAccount;
-    string supportAccountType;
-};
+function buildQueryFromTemplate(string template, json|string[] jiraKeys) returns string {
 
-type SalesforeAccountDetails {
-    string customerName;
-    string customerType;
-    string classification;
-    string accountOwner;
-    string technicalOwner;
-    string domain;
-    string primaryContact;
-    string timeZone;
-};
+    string key_tuple = EMPTY_STRING;
+    match jiraKeys {
+        json jsonJiraKeys => {
+            foreach key in jsonJiraKeys{
+                key_tuple += "," + "'" + key.toString() + "'";
+            }
+        }
+
+        string[] stringJiraKeys => {
+            foreach key in stringJiraKeys{
+                key_tuple += "," + "'" + key + "'";
+            }
+        }
+    }
+
+    key_tuple = key_tuple.replaceFirst(",", "");
+    key_tuple = "(" + key_tuple + ")";
+
+    string resultQuery = template.replace("<JIRA_KEY_LIST>", key_tuple);
+    return resultQuery;
+}

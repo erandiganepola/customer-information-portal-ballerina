@@ -16,16 +16,8 @@
 // under the License.
 //
 
-type OpportunityProductDetails {
-    string name;
-    string profile;
-    string count;
-    string deployment;
-    string supportAccount;
-    string supportAccountType;
-};
-
-type SalesforeAccountDetails {
+type Account {
+    string id;
     string customerName;
     string customerType;
     string classification;
@@ -34,4 +26,30 @@ type SalesforeAccountDetails {
     string domain;
     string primaryContact;
     string timeZone;
+    Opportunity[] opportunities;
+};
+
+type Opportunity {
+    string id;
+    string accountId;
+    OpportunityProduct[] opportunityProducts;
+    SupportAccount[] supportAccounts;
+};
+
+type OpportunityProduct {
+    string id;
+    string name;
+    string profile;
+    string count;
+    string deployment;
+    string supportAccount;
+    string supportAccountType;
+};
+
+type SupportAccount {
+    string id;
+    string opportunityId;
+    string jiraKey;
+    string startDate;
+    string endDate;
 };

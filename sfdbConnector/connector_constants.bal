@@ -16,22 +16,4 @@
 // under the License.
 //
 
-type OpportunityProductDetails {
-    string name;
-    string profile;
-    string count;
-    string deployment;
-    string supportAccount;
-    string supportAccountType;
-};
-
-type SalesforeAccountDetails {
-    string customerName;
-    string customerType;
-    string classification;
-    string accountOwner;
-    string technicalOwner;
-    string domain;
-    string primaryContact;
-    string timeZone;
-};
+@final string EMPTY_STRING = "";
