@@ -1,3 +1,21 @@
+//
+// Copyright (c) 2018, WSO2 Inc. (http://www.wso2.org) All Rights Reserved.
+//
+// WSO2 Inc. licenses this file to you under the Apache License,
+// Version 2.0 (the "License"); you may not use this file except
+// in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License.
+//
+
 import ballerina/mysql;
 import ballerina/io;
 import ballerina/http;
@@ -12,12 +30,12 @@ endpoint mysql:Client mysqlEP {
     name:config:getAsString("NAME"),
     username:config:getAsString("USERNAME"),
     password:config:getAsString("PASSWORD"),
+    dbOptions:{"useSSL":false},
     poolOptions:{maximumPoolSize:config:getAsInt("POOL_SIZE")}
 };
 
 endpoint http:Client httpClientEP{
     url:config:getAsString("HTTP_ENDPOINT_URL")
-    //,timeoutMillis:300000
 };
 
 
@@ -32,7 +50,7 @@ endpoint http:Listener listener {
 service<http:Service> dataSyncService bind listener {
 
     @http:ResourceConfig {
-        methods:["GET"],
+        methods:["POST"],
         path:"/start"
     }
     startSyncData(endpoint caller, http:Request request) {
@@ -54,74 +72,32 @@ service<http:Service> dataSyncService bind listener {
         log:printInfo("Starting sync with Salesforce DB...");
 
         log:printInfo("Deleting records from Salesforce DB...");
-        if(deleteJiraKeys(jiraKeysToBeDeleted)){
-            log:printInfo("Successfully deleted JIRA keys");
-        }
+        deleteJiraKeys(jiraKeysToBeDeleted);
 
         log:printDebug("Getting data from Salesforce API...");
 
         http:Request httpRequest = new;
+        map organizedSfDataMap;
         httpRequest.setJsonPayload(jiraKeysToBeUpserted);
         var out = httpClientEP->post("/collector/salesforce/", request = httpRequest);
         match out {
             http:Response resp => {
-                json organizedSfData = organizeSfData(check resp.getJsonPayload());
                 log:printDebug("Successfully fetched data from Salesforce API");
-                io:println(resp.getJsonPayload());
+                organizedSfDataMap = organizeSfData(check resp.getJsonPayload());
+                io:println(organizedSfDataMap);
+
+                log:printInfo("Upserting records into Salesforce DB...");
+                upsertDataIntoSfDb(organizedSfDataMap);
             }
             error err => {
                 log:printError("Error occured when fetching data from Salesforce. Error: " + err.message);
             }
         }
-
-        //TODO: get data in to variables from organizedSfData
-
-        log:printInfo("Upserting records into Salesforce DB...");
-        //    foreach upsertKey in jiraKeysToBeUpserted {
-        //        transaction with retries = 4, oncommit = onCommitFunction, onabort = onAbortFunction {
-        //        // START TRANSACTION
-        //        var result = mysqlEP -> update(QUERY_TO_INSERT_VALUES_TO_OPPORTUNITY_PRODUCTS,
-        //            key, name, profile, count, deployment);
-        //
-        //        result = mysqlEP -> update(QUERY_TO_INSERT_VALUES_TO_ACCOUNT,
-        //            key, customerName, customerType, classification, account_owner,
-        //            technical_owner, domain, primary_contact, timezone);
-        //
-        //        match result {
-        //            int c => {
-        //                io:println("Inserted count: " + c);
-        //                // The transaction can be force aborted using the `abort` keyword at any time.
-        //                if (c == 0) {
-        //                    abort;
-        //                }
-        //            }
-        //            error err => {
-        //                // The transaction can be force retried using `retry` keyword at any time.
-        //                io:println(err);
-        //                retry;
-        //            }
-        //        }
-        //        } onretry {
-        //            io:println("Retrying transaction");
-        //        }
-        //}
     }
 }
 
 //======================================================================================================//
 //Transaction util functions
-
-function onCommitFunction(string transactionId) {
-    io:println("Transaction: " + transactionId + " committed");
-}
-
-function onAbortFunction(string transactionId) {
-    io:println("Transaction: " + transactionId + " aborted");
-}
-
-function handleError(string message, error e, mysql:Client testDB) {
-    io:println(message + e.message);
-}
 
 function getJiraKeysFromJira() returns string[]|error{
     //Get JIRA keys from JIRA API
@@ -130,7 +106,6 @@ function getJiraKeysFromJira() returns string[]|error{
     match out {
         http:Response resp => {
             io:println(resp.getJsonPayload()!toString());
-            // TODO: use try catch here
             return check <string[]>check resp.getJsonPayload();
         }
         error err => {
@@ -158,7 +133,7 @@ function getJiraKeysFromDB() returns string[]|error{
     }
 }
 
-function deleteJiraKeys(string[] jiraKeysToBeDeleted) returns boolean {
+function deleteJiraKeys(string[] jiraKeysToBeDeleted) {
     string[] oppIds;
     string[] oppIdsToBeDeleted;
     string[] accountIds;
@@ -263,5 +238,79 @@ function deleteJiraKeys(string[] jiraKeysToBeDeleted) returns boolean {
     } onretry {
         io:println("Retrying transaction");
     }
-    return true;
+}
+
+function upsertDataIntoSfDb(map organizedDataMap){
+    log:printDebug("Upsertion transaction starting...");
+
+    foreach upsertKey in organizedDataMap {
+        string key = check <string>upsertKey;
+transaction with retries = 3, oncommit = onCommitFunction, onabort = onAbortFunction {
+
+        foreach opportunity in organizedDataMap[key]{
+                // Start transaction
+                foreach lineItem in opportunity["OpportunityLineItems"]{
+                    var result = mysqlEP -> update(QUERY_TO_INSERT_VALUES_TO_OPPORTUNITY_PRODUCTS,
+                    lineItem["Id"], opportunity["Id"], opportunity["Product"], opportunity["Product"],
+                    opportunity["Quantity"], opportunity["Environment"]);
+                // todo add match block here
+                }
+
+                var result = mysqlEP -> update(QUERY_TO_INSERT_VALUES_TO_ACCOUNT,
+                opportunity["Account"]["Id"], opportunity["Account"]["Name"],
+                opportunity["Account"]["Classification"], opportunity["Account"]["Rating"],
+                opportunity["Account"]["Owner"], opportunity["Account"]["TechnicalOwner"],
+                opportunity["Account"]["Industry"], opportunity["Account"]["Phone"],
+                opportunity["Account"]["BillingAddress"]["city"]);
+// todo Make billling address flat -> add more columns to table (city, street, etc.)
+                match result {
+                    int c => {
+                    io:println("Inserted count: " + c);
+                    // The transaction can be force aborted using the `abort` keyword at any time.
+                        if (c == 0) {
+                            abort;
+                        }
+                    }
+                    error err => {
+                        // The transaction can be force retried using `retry` keyword at any time.
+                        io:println(err);
+                        retry;
+                    }
+                }
+
+                result = mysqlEP -> update(QUERY_TO_INSERT_VALUES_TO_SUPPORT_ACCOUNT,
+                oportunity["SuppportAccount"]["Id"], opportunity["Id"],oportunity["SuppportAccount"]["JiraKey"],
+                oportunity["SuppportAccount"]["StartDate"],oportunity["SuppportAccount"]["EndDate"]
+                );
+                match result {
+                    int c => {
+                    io:println("Inserted count: " + c);
+                    // The transaction can be force aborted using the `abort` keyword at any time.
+                        if (c == 0) {
+                            abort;
+                        }
+                    }
+                    error err => {
+                        // The transaction can be force retried using `retry` keyword at any time.
+                        io:println(err);
+                        retry;
+                    }
+                }
+            } onretry {
+                io:println("Retrying transaction");
+            }
+        }
+    }
+}
+
+function onCommitFunction(string transactionId) {
+    io:println("Transaction: " + transactionId + " committed");
+}
+
+function onAbortFunction(string transactionId) {
+    io:println("Transaction: " + transactionId + " aborted");
+}
+
+function handleError(string message, error e, mysql:Client testDB) {
+    io:println(message + e.message);
 }

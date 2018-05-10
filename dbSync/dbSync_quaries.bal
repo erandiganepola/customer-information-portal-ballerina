@@ -45,29 +45,68 @@ HAVING count(account_id)=1";
 @final string QUERY_TEMPLATE_DELETE_FROM_OPPORTUNITY_PRODUCT_BY_IDS =
 "DELETE FROM OpportunityProducts WHERE opportunity_id IN <IDS>;";
 
-@final string QUERY_TO_INSERT_VALUES_TO_OPPORTUNITY_PRODUCTS =
-"INSERT INTO Opportunity_Products (JIRA_key, Product_name, Profile, Count, Deployment)
-VALUES
-   (?,?,?,?,?)
-ON DUPLICATE KEY UPDATE
-    JIRA_key = VALUES(JIRA_key),
-    Product_name = VALUES(Product_name),
-    Profile = VALUES(Profile),
-    Count = VALUES(Count),
-    Deployment = 'PROD'";
-
 @final string QUERY_TO_INSERT_VALUES_TO_ACCOUNT =
-"INSERT INTO Account (JIRA_key, Customer_name, Customer_type, Classification, Account_owner,
-                  Technical_owner, Domain, Primary_contact, Timezone)
+"INSERT INTO Account (account_id, customer_name, customer_type, classification, account_owner,
+                  technical_owner, domain, primary_contact, timezone)
 VALUES
    (?,?,?,?,?,?,?,?,?)
 ON DUPLICATE KEY UPDATE
-   JIRA_key = VALUES(JIRA_key),
-   Customer_name = VALUES(Customer_name),
-   Customer_type = VALUES(Customer_type),
-   Classification = VALUES(Classification),
-   Account_owner = VALUES(Account_owner),
-   Technical_owner = 'Nuwan',
-   Domain = VALUES(Domain),
-   Primary_contact = VALUES(Primary_contact),
-   Timezone = VALUES(Timezone)";
+   account_id = VALUES(account_id),
+   customer_name = VALUES(customer_name),
+   customer_type = VALUES(customer_type),
+   classification = VALUES(classification),
+   account_owner = VALUES(account_owner),
+   technical_owner = VALUES(technical_owner),
+   domain = VALUES(domain),
+   primary_contact = VALUES(primary_contact),
+   timezone = VALUES(timezone)";
+
+@final string QUERY_TO_INSERT_VALUES_TO_OPPORTUNITY =
+"INSERT INTO Opportunity (opportunity_id, account_id)
+VALUES
+   (?,?)
+ON DUPLICATE KEY UPDATE
+   opportunity_id = VALUES(opportunity_id),
+   account_id = VALUES(account_id)";
+
+@final string QUERY_TO_INSERT_VALUES_TO_OPPORTUNITY_PRODUCTS =
+"INSERT INTO OpportunityProducts (opportunity_product_id, opportunity_id, name, profile, count, deployment)
+VALUES
+   (?,?,?,?,?,?)
+ON DUPLICATE KEY UPDATE
+    opportunity_product_id = VALUES(opportunity_product_id),
+    opportunity_id = VALUES(opportunity_id),
+    name = VALUES(name),
+    profile = VALUES(profile),
+    count = VALUES(count)
+    deployment = VALUES(deployment)";
+
+@final string QUERY_TO_INSERT_VALUES_TO_SUPPORT_ACCOUNT =
+"INSERT INTO SupportAccount (support_account_id, opportunity_id, jira_key, start_date, end_date)
+VALUES
+   (?,?,?,?,?)
+ON DUPLICATE KEY UPDATE
+    support_account_id = VALUES(support_account_id),
+    opportunity_id = VALUES(opportunity_id),
+    jira_key = VALUES(jira_key),
+    start_date = VALUES(start_date),
+    end_date = VALUES(end_date)";
+
+@final string QUERY_TO_INSERT_VALUES_TO_BATCH_STATUS =
+"INSERT INTO Opportunity_Products (id, state, deletion_completed_time, sync_completion_time, uuid)
+VALUES
+   (?,?,?,?,?)
+ON DUPLICATE KEY UPDATE
+    id = VALUES(id),
+    state = VALUES(state),
+    deletion_completed_time = VALUES(deletion_completed_time),
+    sync_completion_time = VALUES(sync_completion_time),
+    uuid = 'uuid'";
+
+@final string QUERY_TO_INSERT_VALUES_TO_RECORD_STATUS =
+"INSERT INTO Opportunity_Products (jira_key, completed_time)
+VALUES
+   (?,?)
+ON DUPLICATE KEY UPDATE
+    jira_key = VALUES(jira_key),
+    completed_time = VALUES(completed_time)";
