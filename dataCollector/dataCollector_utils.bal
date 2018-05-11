@@ -65,7 +65,7 @@ public function fetchSalesforceData(string|json jiraKeysOrNextRecordUrl) returns
             var connectorResponse = salesforceClientEP->getQueryResult(SOQuery);
             match connectorResponse {
                 json jsonResponse => {
-                    io:println(jsonResponse);
+                    //io:println(jsonResponse);
                     return { "success": true, "response": jsonResponse };
                 }
                 sfdc:SalesforceConnectorError e => return { "sucess": false, "response": null, "error": check <json>e };

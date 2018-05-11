@@ -17,7 +17,7 @@
 //
 
 @final string QUERY_TO_GET_JIRA_KEYS_FROM_RECORD_STATUS_TABLE =
-"SELECT jira_key FROM 'RecordStatus'";
+"SELECT jira_key FROM RecordStatus";
 
 @final string QUERY_TEMPLATE_GET_OPPORTUNITY_IDS_BY_JIRA_KEYS =
 "SELECT opportunity_id FROM SupportAccount WHERE jira_key in <JIRA_KEY_LIST>";
@@ -78,7 +78,7 @@ ON DUPLICATE KEY UPDATE
     opportunity_id = VALUES(opportunity_id),
     name = VALUES(name),
     profile = VALUES(profile),
-    count = VALUES(count)
+    count = VALUES(count),
     deployment = VALUES(deployment)";
 
 @final string QUERY_TO_INSERT_VALUES_TO_SUPPORT_ACCOUNT =
@@ -93,15 +93,15 @@ ON DUPLICATE KEY UPDATE
     end_date = VALUES(end_date)";
 
 @final string QUERY_TO_INSERT_VALUES_TO_BATCH_STATUS =
-"INSERT INTO Opportunity_Products (id, state, deletion_completed_time, sync_completion_time, uuid)
+"INSERT INTO Opportunity_Products (id, state, deletion_completed_time, sync_completed_time, uuid)
 VALUES
    (?,?,?,?,?)
 ON DUPLICATE KEY UPDATE
     id = VALUES(id),
     state = VALUES(state),
     deletion_completed_time = VALUES(deletion_completed_time),
-    sync_completion_time = VALUES(sync_completion_time),
-    uuid = 'uuid'";
+    sync_completed_time = VALUES(sync_completion_time),
+    uuid = VALUES(uuid)";
 
 @final string QUERY_TO_INSERT_VALUES_TO_RECORD_STATUS =
 "INSERT INTO Opportunity_Products (jira_key, completed_time)

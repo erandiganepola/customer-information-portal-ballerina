@@ -25,65 +25,68 @@ import sfdc37;
 import dataCollector as dc;
 
 endpoint mysql:Client mysqlEP {
-    host:config:getAsString("HOST"),
-    port:config:getAsInt("PORT"),
-    name:config:getAsString("NAME"),
-    username:config:getAsString("USERNAME"),
-    password:config:getAsString("PASSWORD"),
-    dbOptions:{"useSSL":false},
-    poolOptions:{maximumPoolSize:config:getAsInt("POOL_SIZE")}
+    host: config:getAsString("HOST"),
+    port: config:getAsInt("PORT"),
+    name: config:getAsString("NAME"),
+    username: config:getAsString("USERNAME"),
+    password: config:getAsString("PASSWORD"),
+    dbOptions: { "useSSL": false },
+    poolOptions: { maximumPoolSize: config:getAsInt("POOL_SIZE") }
 };
 
 endpoint http:Client httpClientEP{
-    url:config:getAsString("HTTP_ENDPOINT_URL")
+    url: config:getAsString("HTTP_ENDPOINT_URL")
 };
 
 
 endpoint http:Listener listener {
-    port:config:getAsInt("DATA_SYNC_SERVICE_HTTP_PORT")
+    port: config:getAsInt("DATA_SYNC_SERVICE_HTTP_PORT")
 };
 
 @http:ServiceConfig {
-    endpoints:[listener],
-    basePath:"/sync/salesforce"
+    endpoints: [listener],
+    basePath: "/sync/salesforce"
 }
 service<http:Service> dataSyncService bind listener {
 
     @http:ResourceConfig {
-        methods:["POST"],
-        path:"/start"
+        methods: ["GET"],
+        path: "/start"
     }
     startSyncData(endpoint caller, http:Request request) {
         log:printInfo("Sync service triggered!");
         http:Response response = new;
-        _ = caller -> respond(response);
+        _ = caller->respond(response);
 
-        log:printDebug("Getting active JIRA keys...");
-        string[] keysFromJira = check getJiraKeysFromJira();
+        log:printInfo("Getting active JIRA keys...");
+        //string[] keysFromJira = check getJiraKeysFromJira();
         string[] keysFromSfDb = check getJiraKeysFromDB();
+        io:println(keysFromSfDb);
 
         //Get JIRA keys toBeDeleted and toBeUpserted
-        log:printDebug("Categorizing keys to be deleted and upserted!");
-        map categorizedJiraKeys = dc:categorizeJiraKeys(keysFromJira, keysFromSfDb);
+        //log:printDebug("Categorizing keys to be deleted and upserted!");
+        //map categorizedJiraKeys = dc:categorizeJiraKeys(keysFromJira, keysFromSfDb);
 
-        string[] jiraKeysToBeDeleted = check <string[]>categorizedJiraKeys.toBeDeleted;
-        json[] jiraKeysToBeUpserted = check <json[]>categorizedJiraKeys.toBeUpserted;
+        //string[] jiraKeysToBeDeleted = check <string[]>categorizedJiraKeys.toBeDeleted;
+        //json[] jiraKeysToBeUpserted = check <json[]>categorizedJiraKeys.toBeUpserted;
 
         log:printInfo("Starting sync with Salesforce DB...");
 
-        log:printInfo("Deleting records from Salesforce DB...");
-        deleteJiraKeys(jiraKeysToBeDeleted);
+        //log:printInfo("Deleting records from Salesforce DB...");
+        //deleteJiraKeys(jiraKeysToBeDeleted);
 
         log:printDebug("Getting data from Salesforce API...");
-
         http:Request httpRequest = new;
         map organizedSfDataMap;
         httpRequest.setJsonPayload(jiraKeysToBeUpserted);
         var out = httpClientEP->post("/collector/salesforce/", request = httpRequest);
         match out {
             http:Response resp => {
-                log:printDebug("Successfully fetched data from Salesforce API");
-                organizedSfDataMap = organizeSfData(check resp.getJsonPayload());
+                log:printInfo("Fetching data from Salesforce API...");
+                json jsonPayload = check resp.getJsonPayload();
+                json sfData = jsonPayload["response"];
+                io:println("SF data: " + sfData.toString());
+                organizedSfDataMap = organizeSfData(sfData);
                 io:println(organizedSfDataMap);
 
                 log:printInfo("Upserting records into Salesforce DB...");
@@ -94,16 +97,4 @@ service<http:Service> dataSyncService bind listener {
             }
         }
     }
-}
-
-function onCommitFunction(string transactionId) {
-    io:println("Transaction: " + transactionId + " committed");
-}
-
-function onAbortFunction(string transactionId) {
-    io:println("Transaction: " + transactionId + " aborted");
-}
-
-function handleError(string message, error e, mysql:Client testDB) {
-    io:println(message + e.message);
 }

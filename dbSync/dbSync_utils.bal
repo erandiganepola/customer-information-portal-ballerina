@@ -48,16 +48,18 @@ function organizeSfData(json resultFromSf) returns map {
             "OpportunityLineItems": []
         };
 
-        foreach item in record["OpportunityLineItems"]["records"] {
-            json lineItem = {
-                "Id": item["Id"],
-                "Quantity": item["Quantity"],
-                "Environment": item["Environment__c"],
-                "Product": item["PricebookEntry"]["Name"]
-            };
+            if(record["OpportunityLineItems"]["records"] != null){
+                foreach item in record["OpportunityLineItems"]["records"] {
+                    json lineItem = {
+                    "Id": item["Id"],
+                    "Quantity": item["Quantity"],
+                    "Environment": item["Environment__c"],
+                    "Product": item["PricebookEntry"]["Name"]
+                    };
 
-            opportunity["OpportunityLineItems"][lengthof opportunity["OpportunityLineItems"]] = lineItem;
-        }
+                    opportunity["OpportunityLineItems"][lengthof opportunity["OpportunityLineItems"]] = lineItem;
+                }
+}
 
         if (!sfDataMap.hasKey(jiraKey)) {
             io:println("Adding key: " + jiraKey);
@@ -79,7 +81,7 @@ function getJiraKeysFromJira() returns string[]|error {
     var out = httpClientEP->get("/collector/jira/keys", request = httpRequest);
     match out {
         http:Response resp => {
-            io:println(resp.getJsonPayload()!toString());
+            io:println(resp.getJsonPayload());
             return check <string[]>check resp.getJsonPayload();
         }
         error err => {
@@ -212,7 +214,7 @@ function deleteJiraKeys(string[] jiraKeysToBeDeleted) {
             }
         }
     } onretry {
-    io:println("Retrying transaction");
+        io:println("Retrying transaction");
     }
 }
 
@@ -220,13 +222,22 @@ function deleteJiraKeys(string[] jiraKeysToBeDeleted) {
 // Upsert data into Salesforce database tables
 
 function upsertDataIntoSfDb(map organizedDataMap){
-    log:printDebug("Upsertion transaction starting...");
-
-        foreach upsertKey in organizedDataMap {
+    foreach upsertKey in organizedDataMap {
         transaction with retries =3, oncommit = onCommitFunction, onabort = onAbortFunction {
+            log:printInfo("Upsertion transaction starting...");
             foreach key, value in organizedDataMap{
             //Start transaction
                 foreach opportunity in check <json[]>value{
+
+                string billingAddress =
+                    opportunity["Account"]["BillingAddress"]["city"].toString() + " " +
+                    opportunity["Account"]["BillingAddress"]["country"].toString() + " " +
+                    opportunity["Account"]["BillingAddress"]["geocodeAccuracy"].toString() + " " +
+                    opportunity["Account"]["BillingAddress"]["latitude"].toString() + " " +
+                    opportunity["Account"]["BillingAddress"]["longitude"].toString() + " " +
+                    opportunity["Account"]["BillingAddress"]["postalCode"].toString() + " " +
+                    opportunity["Account"]["BillingAddress"]["state"].toString() + " " +
+                    opportunity["Account"]["BillingAddress"]["street"].toString();
 
                 //Inserting to Account table
                 var accountResult = mysqlEP -> update(QUERY_TO_INSERT_VALUES_TO_ACCOUNT,
@@ -234,7 +245,7 @@ function upsertDataIntoSfDb(map organizedDataMap){
                 opportunity["Account"]["Classification"].toString(), opportunity["Account"]["Rating"].toString(),
                 opportunity["Account"]["Owner"].toString(), opportunity["Account"]["TechnicalOwner"].toString(),
                 opportunity["Account"]["Industry"].toString(), opportunity["Account"]["Phone"].toString(),
-                opportunity["Account"]["BillingAddress"]["city"].toString());
+                billingAddress);
                 // todo Make billling address flat -> add more columns to table (city, street, etc.)
                 match accountResult {
                     int c => {
@@ -245,7 +256,7 @@ function upsertDataIntoSfDb(map organizedDataMap){
                         }
                     }
                     error err => {
-                        // The transaction can be force retried using `retry` keyword at any time.
+                         //The transaction can be force retried using `retry` keyword at any time.
                         io:println(err);
                         retry;
                     }
@@ -253,10 +264,8 @@ function upsertDataIntoSfDb(map organizedDataMap){
 
                 //Inserting to Opportunity table
                 var oppResult = mysqlEP -> update(QUERY_TO_INSERT_VALUES_TO_OPPORTUNITY,
-                opportunity["SuppportAccount"]["Id"].toString(), opportunity["Id"].toString(),
-                opportunity["SuppportAccount"]["JiraKey"].toString(),
-                opportunity["SuppportAccount"]["StartDate"].toString(),
-                opportunity["SuppportAccount"]["EndDate"].toString());
+                opportunity["Id"].toString(),
+                opportunity["Account"]["Id"].toString());
                 match oppResult {
                     int c => {
                         io:println("Inserted count: " + c);
@@ -298,10 +307,11 @@ function upsertDataIntoSfDb(map organizedDataMap){
 
                 //Inserting to SupportAccount table
                     var supportAccResult = mysqlEP -> update(QUERY_TO_INSERT_VALUES_TO_SUPPORT_ACCOUNT,
-                    opportunity["SuppportAccount"]["Id"].toString(), opportunity["Id"].toString(),
-                    opportunity["SuppportAccount"]["JiraKey"].toString(),
-                    opportunity["SuppportAccount"]["StartDate"].toString(),
-                    opportunity["SuppportAccount"]["EndDate"].toString());
+                    opportunity["SupportAccount"]["Id"].toString(),
+                    opportunity["Id"].toString(),
+                    opportunity["SupportAccount"]["JiraKey"].toString(),
+                    opportunity["SupportAccount"]["StartDate"].toString(),
+                    opportunity["SupportAccount"]["EndDate"].toString());
                     match supportAccResult {
                         int c => {
                                     io:println("Inserted count: " + c);
@@ -320,7 +330,75 @@ function upsertDataIntoSfDb(map organizedDataMap){
             }
         }
         onretry {
-            io:println("Retrying transaction");
+            log:printInfo("Retrying transaction...");
         }
     }
+}
+
+
+function onCommitFunction(string transactionId) {
+    log:printDebug("Successful! Upsertion transaction comitted with transaction ID: " + transactionId);
+}
+
+function onAbortFunction(string transactionId) {
+    log:printDebug("Failed! Upsertion transaction aborted with transaction ID: " + transactionId);
+}
+
+function handleError(string message, error e, mysql:Client testDB) {
+    io:println(message + e.message);
+}
+
+//================================================================================================//
+
+public function buildQueryFromTemplate(string template, json|string[] jiraKeys) returns string {
+    string key_tuple = EMPTY_STRING;
+    match jiraKeys {
+        json jsonJiraKeys => {
+            foreach key in jsonJiraKeys{
+                key_tuple += "," + "'" + key.toString() + "'";
+            }
+        }
+
+        string[] stringJiraKeys => {
+            foreach key in stringJiraKeys{
+                key_tuple += "," + "'" + key + "'";
+            }
+        }
+    }
+    key_tuple = key_tuple.replaceFirst(",", "");
+    key_tuple = "(" + key_tuple + ")";
+
+    string resultQuery = template.replace("<JIRA_KEY_LIST>", key_tuple);
+    io:println(resultQuery);
+    return resultQuery;
+}
+
+public function categorizeJiraKeys(string[] newKeys, string[] currentKeys) returns map {
+    string[] toBeUpserted = [];
+    string[] toBeDeleted = [];
+    int i_upsert = 0;
+    int i_delete = 0;
+
+    foreach (key in newKeys){
+        toBeUpserted[i_upsert] = key;
+        i_upsert += 1;
+    }
+
+    foreach (key in currentKeys){
+        if (!hasJiraKey(newKeys, key)){ //update
+            toBeDeleted[i_delete] = key;
+            i_delete += 1;
+        }
+    }
+    map result = { "toBeUpserted": toBeUpserted, "toBeDeleted": toBeDeleted };
+    return result;
+}
+
+function hasJiraKey(string[] list, string key) returns boolean {
+    foreach (item in list){
+        if (item == key){
+        return true;
+        }
+    }
+    return false;
 }
