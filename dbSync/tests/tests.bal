@@ -10,7 +10,7 @@ endpoint http:Client httpClient{
 // Before Suite Function is used to start the services
 @test:BeforeSuite
 function beforeSuiteFunc() {
-    boolean status = test:startServices("Starting Database Services...");
+    boolean status = test:startServices(".");
     io:println(status);
 }
 
@@ -20,10 +20,12 @@ function testStartSyncData() {
     log:printInfo("testStartSyncData Service");
 
     http:Request httpRequest = new;
-    var out = httpClient->post("/sync/salesforce/start", request = httpRequest);
+    var out = httpClient->get("/sync/salesforce/start", request = httpRequest);
     match out {
-        //http:Response resp => io:println(check resp.getJsonPayload());
-        http:Response resp => io:println("hello");
+        http:Response resp => {
+            io:println("hello");
+        }
+        //http:Response resp => io:println("hello");
         error e => {
             test:assertFail(msg = e.message);
         }
@@ -33,5 +35,5 @@ function testStartSyncData() {
 // After Suite Function is used to stop the services
 @test:AfterSuite
 function afterSuiteFunc() {
-    test:stopServices("Stopping Database Services...");
+    test:stopServices(".");
 }
