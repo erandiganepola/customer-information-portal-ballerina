@@ -53,3 +53,9 @@ type SupportAccount {
     string startDate;
     string endDate;
 };
+
+public type ProjectSummary {
+    string key;
+    string name;
+    string category;
+};
