@@ -16,7 +16,7 @@
 // under the License.
 //
 
-@final string QUERY_TEMPLATE_GET_ACCOUNT_DETAILS_BY_JIRA_KEYS = "
+@final string QUERY_TEMPLATE_GET_CUSTOMER_DETAILS_BY_JIRA_KEYS = "
     SELECT
         Account.account_id,
         Account.customer_name,
@@ -45,6 +45,19 @@
     INNER JOIN Opportunity ON SupportAccount.opportunity_id = Opportunity.opportunity_id
     INNER JOIN Account ON Account.account_id = Opportunity.account_id
     INNER JOIN OpportunityProducts ON OpportunityProducts.opportunity_id = Opportunity.opportunity_id
+
+    WHERE
+        jira_key IN <JIRA_KEY_LIST>";
+
+
+@final string QUERY_TEMPLATE_GET_PROJECT_DETAILS_BY_JIRA_KEYS = "
+    SELECT
+        JiraProject.jira_key,
+        JiraProject.project_name,
+        JiraProject.project_category
+
+    FROM
+        JiraProject
 
     WHERE
         jira_key IN <JIRA_KEY_LIST>";
