@@ -40,6 +40,9 @@ public type SalesforceDatabaseConnector object {
 
     //Returns the detailed representation of the customers related to a given jira key list
     public function getAllCustomerDetailsByJiraKeys(string[] jiraKeys) returns Account[]|error;
+
+    //Returns the detailed representation of the project details related for a given jira key list
+    public function getAllProjectDetailsByJiraKeys(string[] jiraKeys) returns ProjectSummary[]|error;
 };
 
 public function SalesforceDatabaseConnector::getAllCustomerDetailsByJiraKeys(string[] jiraKeys) returns Account[]|error {
@@ -54,4 +57,19 @@ public function SalesforceDatabaseConnector::getAllCustomerDetailsByJiraKeys(str
         error e => io:println(e);
     }
     return accounts;
+}
+
+
+public function SalesforceDatabaseConnector::getAllProjectDetailsByJiraKeys(string[] jiraKeys) returns ProjectSummary[]|error {
+
+    ProjectSummary[] projects =[];
+
+    string builtQuery = buildQueryFromTemplate(QUERY_TEMPLATE_GET_CUSTOMER_DETAILS_BY_JIRA_KEYS, jiraKeys);
+
+    var result = mysqlClientEP->select(builtQuery, ());
+    match result {
+        table tb => io:println(<json>tb);
+        error e => io:println(e);
+    }
+    return projects;
 }
