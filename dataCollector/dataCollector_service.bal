@@ -92,9 +92,37 @@ service<http:Service> dataCollector bind listener {
 
     @http:ResourceConfig {
         methods: ["GET"],
-        path: "/jira/keys"
+        path: "/jira/keys?exclude=closed"
     }
     getActiveJiraKeys(endpoint caller, http:Request request) {
+
+        http:Response response = new;
+
+        var connectorResponse = jiraClientEP->getAllProjectSummaries();
+
+        match connectorResponse {
+            jira:ProjectSummary[] summaryList => {
+                json[] projectKeys = [];
+                int i = 0;
+                foreach (project in summaryList){
+                    if(!project.name.hasPrefix("ZZZ")){
+                        projectKeys[i]=project.key;
+                    i+=1;
+                }
+            }
+            response.setJsonPayload({ "success": true, "response": projectKeys, "error":null });
+            }
+            jira:JiraConnectorError e => response.setJsonPayload({ "success": false, "response": null, "error": e.
+                message });
+        }
+        _ = caller->respond(response);
+    }
+
+    @http:ResourceConfig {
+        methods: ["GET"],
+        path: "/jira/keys"
+    }
+    getAllJiraKeys(endpoint caller, http:Request request) {
 
         http:Response response = new;
 
@@ -104,15 +132,32 @@ service<http:Service> dataCollector bind listener {
                 json[] projectKeys = [];
                 int i = 0;
                 foreach (project in summaryList){
-                    if(!project.name.hasPrefix("ZZZ")){
-                        projectKeys[i]=project.key;
-                        i+=1;
-                    }
+                    projectKeys[i]=project.key;
+                    i+=1;
                 }
                 response.setJsonPayload({ "success": true, "response": projectKeys, "error":null });
             }
             jira:JiraConnectorError e => response.setJsonPayload({ "success": false, "response": null, "error":e.message });
         }
         _ = caller->respond(response);
+    }
+
+    @http:ResourceConfig {
+        methods: ["GET"],
+        path: "/jira/projects"
+    }
+    getAllJiraProjects(endpoint caller, http:Request request) {
+
+    http:Response response = new;
+
+    var connectorResponse = jiraClientEP->getAllProjectSummaries();
+    match connectorResponse {
+        jira:ProjectSummary[] summaryList => {
+
+            response.setJsonPayload({ "success": true, "response": check <json>summaryList, "error":null });
+        }
+        jira:JiraConnectorError e => response.setJsonPayload({ "success": false, "response": null, "error":e.message });
+    }
+    _ = caller->respond(response);
     }
 }
