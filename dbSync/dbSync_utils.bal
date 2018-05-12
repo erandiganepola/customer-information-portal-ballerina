@@ -128,18 +128,18 @@ function upsertDataIntoSfDb(map organizedDataMap){
                 foreach opportunity in check <json[]>value{
                 //Inserting to Account table
                 var accountResult = mysqlEP -> update(QUERY_TO_INSERT_VALUES_TO_ACCOUNT,
-                opportunity["Account"]["Id"].toString(), opportunity["Account"]["Name"].toString(),
-                opportunity["Account"]["Classification"].toString(), opportunity["Account"]["Rating"].toString(),
-                opportunity["Account"]["Owner"].toString(), opportunity["Account"]["TechnicalOwner"].toString(),
-                opportunity["Account"]["Industry"].toString(), opportunity["Account"]["Phone"].toString(),
-                opportunity["Account"]["BillingAddress"]["city"].toString(),
-                opportunity["Account"]["BillingAddress"]["country"].toString(),
-                opportunity["Account"]["BillingAddress"]["geocodeAccuracy"].toString(),
-                opportunity["Account"]["BillingAddress"]["latitude"].toString(),
-                opportunity["Account"]["BillingAddress"]["longitude"].toString(),
-                opportunity["Account"]["BillingAddress"]["postalCode"].toString(),
-                opportunity["Account"]["BillingAddress"]["state"].toString(),
-                opportunity["Account"]["BillingAddress"]["street"].toString());
+                    opportunity["Account"]["Id"].toString(), opportunity["Account"]["Name"].toString(),
+                    opportunity["Account"]["Classification"].toString(), opportunity["Account"]["Rating"].toString(),
+                    opportunity["Account"]["Owner"].toString(), opportunity["Account"]["TechnicalOwner"].toString(),
+                    opportunity["Account"]["Industry"].toString(), opportunity["Account"]["Phone"].toString(),
+                    opportunity["Account"]["BillingAddress"]["city"].toString(),
+                    opportunity["Account"]["BillingAddress"]["country"].toString(),
+                    opportunity["Account"]["BillingAddress"]["geocodeAccuracy"].toString(),
+                    opportunity["Account"]["BillingAddress"]["latitude"].toString(),
+                    opportunity["Account"]["BillingAddress"]["longitude"].toString(),
+                    opportunity["Account"]["BillingAddress"]["postalCode"].toString(),
+                    opportunity["Account"]["BillingAddress"]["state"].toString(),
+                    opportunity["Account"]["BillingAddress"]["street"].toString());
 
                 match accountResult {
                     int c => {
@@ -156,8 +156,8 @@ function upsertDataIntoSfDb(map organizedDataMap){
 
                 //Inserting to Opportunity table
                 var oppResult = mysqlEP -> update(QUERY_TO_INSERT_VALUES_TO_OPPORTUNITY,
-                opportunity["Id"].toString(),
-                opportunity["Account"]["Id"].toString());
+                    opportunity["Id"].toString(),
+                    opportunity["Account"]["Id"].toString());
                 match oppResult {
                     int c => {
                         log:printDebug("Inserted new row to Opportunity");
@@ -174,11 +174,11 @@ function upsertDataIntoSfDb(map organizedDataMap){
                 //Inserting to OpportunityProducts table
                 foreach lineItem in opportunity["OpportunityLineItems"]{
                     var lineItemsResult = mysqlEP->update(QUERY_TO_INSERT_VALUES_TO_OPPORTUNITY_PRODUCTS,
-                    lineItem["Id"].toString(), opportunity["Id"].toString(),
-                    lineItem["Product"].toString(),
-                    lineItem["Product"].toString(),
-                    lineItem["Quantity"].toString(),
-                    lineItem["Environment"].toString());
+                        lineItem["Id"].toString(), opportunity["Id"].toString(),
+                        lineItem["Product"].toString(),
+                        lineItem["Product"].toString(),
+                        lineItem["Quantity"].toString(),
+                        lineItem["Environment"].toString());
                     match lineItemsResult {
                         int c => {
                             log:printDebug("Inserted new row to OpportunityProducts");
@@ -201,11 +201,11 @@ function upsertDataIntoSfDb(map organizedDataMap){
 sql:Parameter para4 = { sqlType: sql:TYPE_DATE, value: opportunity["SupportAccount"]["EndDate"].toString() };
 
                     var supportAccResult = mysqlEP -> update(QUERY_TO_INSERT_VALUES_TO_SUPPORT_ACCOUNT,
-                    opportunity["SupportAccount"]["Id"].toString(),
-                    opportunity["Id"].toString(),
-                    opportunity["SupportAccount"]["JiraKey"].toString(),
-                    para3,
-                    para4);
+                        opportunity["SupportAccount"]["Id"].toString(),
+                        opportunity["Id"].toString(),
+                        opportunity["SupportAccount"]["JiraKey"].toString(),
+                        para3,
+                        para4);
                     match supportAccResult {
                         int c => {
                                 log:printDebug("Inserted new row to SupportAccount");
@@ -368,17 +368,17 @@ function deleteJiraKeys(string[] jiraKeysToBeDeleted) {
         }
 
         var result = mysqlEP -> update(dc:buildQueryFromTemplate
-        (QUERY_TEMPLATE_DELETE_FROM_SUPPORT_ACCOUNT_BY_JIRA_KEYS, jiraKeysToBeDeleted));
+            (QUERY_TEMPLATE_DELETE_FROM_SUPPORT_ACCOUNT_BY_JIRA_KEYS, jiraKeysToBeDeleted));
 
         result = mysqlEP -> update(dc:buildQueryFromTemplate
-        (QUERY_TEMPLATE_DELETE_FROM_ACCOUNT_BY_ACCOUNT_IDS, accountIdsToBeDeleted));
+            (QUERY_TEMPLATE_DELETE_FROM_ACCOUNT_BY_ACCOUNT_IDS, accountIdsToBeDeleted));
 
         result = mysqlEP -> update(dc:buildQueryFromTemplate
-        (QUERY_TEMPLATE_DELETE_FROM_OPPORTUNITY_BY_OPPORTUNITY_IDS, oppIdsToBeDeleted));
+            (QUERY_TEMPLATE_DELETE_FROM_OPPORTUNITY_BY_OPPORTUNITY_IDS, oppIdsToBeDeleted));
 
         // Can do this with "ON DELETE CASCADE"
         result = mysqlEP -> update(dc:buildQueryFromTemplate
-        (QUERY_TEMPLATE_DELETE_FROM_OPPORTUNITY_PRODUCT_BY_IDS, oppIdsToBeDeleted));
+            (QUERY_TEMPLATE_DELETE_FROM_OPPORTUNITY_PRODUCT_BY_IDS, oppIdsToBeDeleted));
 
         //TODO: Update BatchStatus table with deletion_completed_time
 
