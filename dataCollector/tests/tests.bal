@@ -4,8 +4,12 @@ import ballerina/http;
 import ballerina/log;
 
 endpoint http:Client httpClientEP{
-    url: "http://localhost:9090"
+    url: "http://localhost:10000"
 };
+
+
+json test_jiraKeyList;
+string test_nextRecordsUrl;
 
 // Before Suite Function is used to start the services
 @test:BeforeSuite
@@ -16,17 +20,21 @@ function beforeSuiteFunc() {
 
 // Test function
 @test:Config
-function test_dataCollectorSF() {
-    io:println("\n\n\n\n\n");
-    log:printInfo("test_service_salesforceDataCollector");
-
-    json jsonKeyList = ["AAALIFEPROD", "AAAMAPROD"];
+function test_getAllJiraKeys() {
+    log:printInfo("test_service_getAllJiraKeys()");
 
     http:Request httpRequest = new;
-    httpRequest.setJsonPayload(jsonKeyList);
-    var out = httpClientEP->post("/collector/salesforce/", request = httpRequest);
+    var out = httpClientEP->get("/collector/jira/keys", request = httpRequest);
     match out {
-        http:Response resp => io:println(resp.getJsonPayload());
+        http:Response resp => {
+            json dcResponse = check resp.getJsonPayload();
+            if (dcResponse["success"].toString() == "true"){
+                test_jiraKeyList = dcResponse["response"];
+
+            } else {
+                test:assertFail(msg = dcResponse["error"].toString());
+            }
+        }
         error e => {
             test:assertFail(msg = e.message);
         }
@@ -35,14 +43,135 @@ function test_dataCollectorSF() {
 
 // Test function
 @test:Config
-function test_getActiveJiraKeys() {
-   io:println("\n\n\n\n\n");
-    log:printInfo("test_service_getActiveJiraKeys()");
+function test_getAllJiraProjects() {
+    log:printInfo("test_service_getAllJiraProjects()");
 
     http:Request httpRequest = new;
-    var out = httpClientEP->get("/collector/jira/keys", request = httpRequest);
+    var out = httpClientEP->get("/collector/jira/projects", request = httpRequest);
     match out {
-        http:Response resp => io:println(resp.getJsonPayload()!toString());
+        http:Response resp => {
+            json dcResponse = check resp.getJsonPayload();
+            if (dcResponse["success"].toString() == "true"){
+            } else {
+                test:assertFail(msg = dcResponse["error"].toString());
+            }
+        }
+        error e => {
+            test:assertFail(msg = e.message);
+        }
+    }
+}
+
+// Test function
+@test:Config {
+    dependsOn: ["test_getAllJiraKeys"]
+}
+function test_getDataFromSF() {
+
+    log:printInfo("test_service_getDataFromSF");
+
+    http:Request httpRequest = new;
+    //json jirakeys = ["AAALIFEPROD","CINECADEVSVC","TRIMBLEINTERNAL","IBMCOGNOSOEMSPRT","IBMFILENETSESSPRT"];
+    json jirakeys = ["CINECADEVSVC", "TRIMBLEINTERNAL", "IBMCOGNOSOEMSPRT", "IBMFILENETSESSPRT", "MAGICSWOEMSPRT",
+    "METACARTAOEMSPRT", "PRODPERCEPTIVESW", "PRODSAGAHOLS", "TERANETPRODSPRT", "TOVEKPRODSPRT", "UCLASESPRODSPRT",
+    "WELLSSESPRODSPRT", "ICONPLCDEVSVC", "AAAMAPROD", "AAALIFEPROD", "AANDBSUB", "ABSOLUTEDSVCSDEVSVC", "ACCSERASIPROD",
+    "ACCENTUREGDEV", "ACCENTURETHREEPROD", "ACQUIACPDEVSVC", "AGFORDPROD", "ACTPROD", "ACTIVAMUTUASUB", "ADESSOSUB",
+    "BSLAMCSUB", "AGIPLANPROF", "AGIPLANSUB", "AGOSIDSDEV", "AGOSSUB", "AGOSAPIMSUB", "AIMIADEV", "ALELMMIGRATIONDEVSVC"
+    , "AMAPRODSPRT", "ALUDEV", "ALFABANKPROD", "ALIGNTECHPROD", "ALLIANCEBERNSUB", "ALLIANCEBERNSTEINUSPROD",
+    "ALLIANCEBERNPROD", "ALTUSDEVSVC", "ALTUSGROUPSUB", "AMDOCSDEVDEV", "AMDOCSDEV", "AMEXGBTPROD", "AMFAMDEVSPRT",
+    "AMFAMPROD", "AMFIDELITYDEV", "AMFIDELITYSUB", "AMFIDELITYPROD", "AMPINTERNALPROF", "AMPBANKDEV", "AMPPRODPROD",
+    "AMTEGASUB", "AMWAYSUB", "AMWAYDEVSVC", "ANDALUCIADEV", "ANDALUCIAPROD", "APPWHEREMXDEV", "ARCANAJAZZSUB",
+    "ARCHMIPROD", "ARGOSSUB", "ARSPROD", "ARZSUB", "AUTODESKPROF", "AVANSPROD", "AVIDXPROD", "AVINTISPROD",
+    "AXIATAMIFEDEVSVC", "AXIATAMIFEPROF", "AYLASUB", "BAESYSTEMSPROD", "BASECITIDEV", "BASEPROD", "BOADEV",
+    "BOCUKDEVSVC", "BOCUKSUB", "HAPOALIMEVALDEV", "BARCLAYPROD", "BAYTDEV", "BCEPROD", "BCIDAHODEVDEVSVC", "BDODEV",
+    "BDOPROD", "BEEGYPROD", "SIXDOTSPROD", "BERKLEYAPIMPROD", "BERLINAIRPORTPROD", "BESSEMERTRUSTPROD", "BINCKBANKPROD",
+    "MOHRESUB", "BLOOMBERGPROD", "BLSAGPROD", "BLSAGDEV", "BCIDAHOAPIPRODPROD", "BLUELABELEVALSUB", "BNDESPROF",
+    "BNPARVALSUB", "BNYMAPIMDEV", "BNYDEVSVC", "BNYPADEV", "BNYMELLONDEVSVC", "BNYPROF", "BNYAMODEV", "BNYMPROF",
+    "BNYMELLONPROD", "BNYMDMADEV", "BNYMDMAPROD", "BOEINGDEVSVC", "BPIFRANCEPROD", "BYUPROD", "BYUIDSUB",
+    "BRITAIRALERDEV", "BCGOVPSPROD", "BESSUB", "BTUKDEV", "BROOKSONEVALDEV", "BRUSSELSAPTPROD", "CKUSABLENEDEV",
+    "CAPAYMENTSPROD", "CASUISSEPBDEV", "CAAQUEBECDEV", "CAAQUEBECDEVSVC", "CABLEVISIONDEV", "CABLEVISIONSUB",
+    "CABLEVPROD", "CALIBERPRODPROD", "CAWATERPROD", "CAWATERSUB", "CALLIDUSCLOUDDEV", "CAPEMISADEV", "CAPEMISAINIPROF",
+    "CAPNLEVALSUB", "CAPGRPPROD", "CARGILLSBANKSUB", "CARRINGTONDEV", "CASDENBANQUESUB", "CBRESUB", "CEDROGUIDEDEV",
+    "CELLCARDSUB", "CDCDEV", "CENTERPARCSDEV", "CBRDEV", "CENTERPARCSPROD", "CERNERDEV", "CETPROD", "CETELEMSPAINPROD",
+    "CGISHELLPROD", "SHELLDEVSVC", "CHAKRAYDEV", "PRODCHB", "CIBERDEVSVC", "CINECAPROD", "CIRBSUB", "CIRCLEBDEVSVC",
+    "CISCOEIPOEMPROD", "CISCOESBPROD", "CISCOMITDDEV", "CISCODEV", "CISCOVCEPDEVSVC", "CITSDEVSUPDEV",
+    "CITYSPRINTUKPROD", "CLEARSLIDEDEV", "CLOUDUSER", "CLOUDNINESUB", "CNPSUB", "CNSEGSUB", "COLORCONPROD",
+    "COLORCONDEV", "COMBANKCEYLONPROD", "CBDPROD", "CCLKPROD", "CCLKPROF", "CBAMOBILEBANKINGDEVSVC", "CBSASUB",
+    "CCNCPROD", "CHNDEV", "COMUNEDIMILANOPROD", "CONCUR", "CONCURFEDDEVSVC", "CONCURPROD", "DEFOMENTOSUB",
+    "CONBYGECKODEV", "CONSUMENPRODPROD", "COPARTDEV", "COPARTPROD", "CRAINTDEV", "CREDIBOMSUB", "CREDICOOPSUB",
+    "CREDITAGRICOLEPROD", "CAPRIVATEBANKPROD", "CUAPROD", "CSIPEMPROD", "CSIPEMDEVSPRT", "CSRADEV", "CTSEVALDEV",
+    "CUSTARDFTSUB", "CUSTOMERSUCCESINT", "CXTEXPRODSPRT", "CYTAPROD", "DAISTECHSUB", "DAISTECHDEV", "DATASOLDEV",
+    "DELTADENTALSUB", "DEMODEV", "DEMOSUB", "DEMOTWOSUB", "DEMOUPGRADEDEV", "DEMOUPGRADEMCPROD", "DEMOUPGRADEPROD",
+    "DEMOTESTPROD", "DEMOPROD", "DAFPROD", "DHSPROD", "DITDEV", "DEUTSCHEBAHNSUB", "DEUTSCHEBANKPROD", "DBGERMANYSUB",
+    "DEVRYSUB", "DHSTWOSUB", "DIALOGPROD", "DIGIPOLISGENTPROD", "DGITDEVSVC", "DIGIPOLISPROD", "DINARDAPPROD",
+    "DGCITPROD", "DIRECTVLASUB", "DISCOVERYDEV", "DISCOVERYPROD", "DMSDEV", "DITSUB", "DOFPSPROD", "DOMINOSPROD",
+    "DOMINOSDEV", "DOMINOSPIZZADEV", "DEAEPICDEV", "DSCDEV", "DSCLOGISTICSSUB", "DTUKMTPPROF", "DTEENERGYPROD",
+    "DTUKPROF", "DUBAIEGOVPROD", "DUBAIEGOVDEV", "DUBAIPOLICEPROD", "MOLDOVAPROD", "EAGLEINVSYSDEV", "EAGLETGDEV",
+    "EASIERAGDEV", "EASTERNBANKDEV", "EBGAMESPROD", "EBAYESBPRODESB", "EBPSOURCEGREIPROD", "EDGLOBOPROD", "ECISUB",
+    "ELECTRASUB", "ELLUCIANDEV", "ELLUCIANPROD", "ELLUCIANDEVSVC", "ELSDEV", "ELSSUB", "EMOXAPTNRDEV", "ENELDEV",
+    "ENELPROD", "ENELCOMHOMEPROD", "ENELVENDORPROD", "ENEODEV", "ENGIEPROD", "ENGDSHBDEV", "ENTREDADEV", "EONDEVSVC",
+    "EONPROD", "ERICSSONDEV", "EROSKISUB", "ECADEV", "ECAPROD", "ETISALATPROD", "EURCOMMEVALDEV", "ECSUB", "EXFODEVSVC",
+    "EXFOSUB", "EXPEDIAPROD", "EXPEDIAGPPPROF", "EXPERIANUKPROD", "EXPRPROD", "EXPRIVIADEV", "FARFETCHSUB", "TRUVOPROD",
+    "FIDELITYFBTDEV", "FIDELITYFBTPROD", "FIDELITYDEV", "FIDELITYDPPROD", "FIDELITYITECDEV", "FIDELITYITECPROD",
+    "FMRPPDEVSVC", "FIDELITYPIPROD", "FIDELITYPIDEV", "FIDELITYWIDEV", "FIDELITYWIPROD", "FIDELITYPROF", "FNBSUB",
+    "FISGLOBALSUB", "FISUKDEV", "FISINDIASUB", "FISTHAILANDSUB", "FISERVDEV", "FODMPROD", "FOIITFISCALPROD", "FOITTDEV",
+    "FOITTESBDEV", "EDECPROD", "FRANCETVPROD", "FPDIGITALPROD", "FSDEV", "GFORMPROF", "GADPRODSPRT", "GARTNERSUB",
+    "GCSDEV", "GEHEATHEVALSUB", "GSADEVSVC", "GSAPRODSUPPROD", "GENERALISUB", "GENERALLIPROD", "GENESYSPROD",
+    "GETINSUREDDEV", "GEWISSSUB", "GILBARCODEVSVC", "GIREVEPRODPROD", "GLOBALMATIXDEV", "GMVTRIALSUB", "GOTWOGROUPDEV",
+    "GRANITESUB", "GROUPAMASUB", "GSMADIALOGDEVDEVSVC", "HWEBDEVSUB", "HCHPROD", "HARMANINTLDEV", "HARMANINCDEV",
+    "HCASUB", "HELLOGROUPDEV", "HELLOGROUPSUB", "HILTONDEV", "HILTONDEVSVC", "HILTONPROD", "HMRCDEV", "HMRCPROD",
+    "HNBPROD", "HONDALATAMPROD", "HONDAFINANCESUB", "HONDARDDEV", "HKJCSUB", "HHKNPROD", "HOSTWAYPROD", "HPCYBERSECDEV",
+    "HPCYBERSECPROD", "HPINDIASUB", "HQSDDCPROD", "HUAWEIINT", "HUEPPESUB", "IBRIDGEPROD", "IFAOSUB", "ICASUB",
+    "ICTAISDEV", "INLDEV", "INLSUB", "IDEXXDEV", "IDEXXDEVSVC", "IDEXXPROD", "IGGROUPPOCPROF", "INTMNTHCPROF",
+    "IJETPROD", "ILUMNODEV", "ILUMNOPROD", "ILUMNODEVSVC", "IMDAADPROD", "IMSDEVSVC", "IMSHEALTHPROD", "APIMDEV",
+    "APPFACDEV", "INABOXGROUPDEV", "INCRESEARCHSUB", "INCOTEXSUB", "INDIANAFARMBDEV", "INGROMANIAPROD", "INGDIRECTPROD",
+    "INGTURKEYDEV", "INGTURKEYPROD", "INNOVATEUKPROD", "INOVAEVALDEV", "INSEEDEV", "INSEESUB", "IWDEV",
+    "INTERACCIONESPROD", "IPSOSDEV", "ISSFACILITYPROD", "GOVWIZELYDEV", "JLECAPGEMINIDEV", "JLRCAPGEMINIPROD",
+    "TPMGDEVSVC", "TPMGSUB", "KARSUNDHSDEVSVC", "KARSUNDEVSVC", "KNOWITDEV", "KPPRODSPRT", "KPTPMG", "KPTPMGDEVSVC",
+    "KPMGASSETPROD", "KPMGEMAPROD", "KPMGDEVSVC", "KPMGSOAPROD", "KOWRSUB", "LACAJAPROD", "LABCORPSUB", "LABCORPEVALSUB"
+    , "LANTSUB", "LAPOSTEDEV", "LAPOSTESUB", "LBDKPROD", "LIAISONDEV", "LIFEMILESSUB", "LINDEXPROD", "LISPASUB",
+    "MANETICDEV", "MACMILLANPROD", "MANTRUCKSUB", "MARITZDEV", "MARITZPROD", "MMCSUB", "MASHOLDINGSDEV",
+    "MASHOLDINGSSUB", "MITEDUPROF", "EBPSOURCEMASSYPROD", "MAXIMUSDEVSVC", "MBIEDEV", "MBIEDVSVCINT", "MBIEESMPROD",
+    "MBIEPROD", "MCKESSONPROD", "MCSDEV", "MEDLINEDEV", "MEDLINEPROD", "MEDLINEDEVSVC", "MBRND", "MERCEDESPROF",
+    "METROPRODPROD", "MICRONDEV", "MICRONPROD", "PLANEJAMENTOSUB", "MINISTRYDEVSVC", "MBIEBBPROD", "MBIECONSULTPROF",
+    "MINISTRYIEPROD", "MITASUB", "MOBITELPROD", "MOODYSSSODEV", "MOODYSSUB", "MOTOROLAMOBHSPROD", "MOTOROLAMOBPROD",
+    "MOTOROLAMOBDEV", "MPRGSUB", "MOADEV", "MOAPROD", "NANTHEALTHDEV", "NANTHEALTHSUB", "NNINSURANCESUB", "NTBPROD",
+    "NCCWPROD", "NCSEVALDEV", "NETSNORWAYSUB", "NEWYORKUNIPROD", "NEWELLDEV", "NGTDEV", "NGTDEVSVC", "IITARCHCONPROF",
+    "NIJIFRDEV", "NISSANNASUB", "NISSANUKPROD", "NMDPSUB", "NORDEADEVSVC", "NUTANIXPROD", "NEWYORKUNIDEV",
+    "OTWOSLOVAKIAPROD", "ODELPROFSERV", "OEAMTCSUB", "ORANGEPOCDEVSVC", "ORANGETHEORYDEV", "OSDEVSVC", "OSIPROD",
+    "PACONSULTINGPROD", "PACIFICCONTROLSDEVSVC", "PGEPROF"];
+
+    io:println(lengthof jirakeys);
+    httpRequest.setJsonPayload(jirakeys);
+    var out = httpClientEP->post("/collector/salesforce/", request = httpRequest);
+    match out {
+        http:Response resp => {
+            json dcResponse = check resp.getJsonPayload();
+            if (dcResponse["success"].toString() == "true"){
+                test_nextRecordsUrl = dcResponse["response"]["nextRecordsUrl"].toString();
+            } else {
+                test:assertFail(msg = dcResponse["error"].toString());
+            }
+        }
+        error e => {
+            test:assertFail(msg = e.message);
+        }
+    }
+}
+
+// Test function
+@test:Config {
+    dependsOn: ["test_getDataFromSF"]
+}
+function test_getPaginatedDataFromSF() {
+
+    log:printInfo("test_service_getPaginatedDataFromSF");
+
+    http:Request httpRequest = new;
+    httpRequest.setJsonPayload(test_nextRecordsUrl);
+    var out = httpClientEP->post("/collector/salesforce/next", request = httpRequest);
+    match out {
+        http:Response resp => {}
         error e => {
             test:assertFail(msg = e.message);
         }
@@ -51,14 +180,10 @@ function test_getActiveJiraKeys() {
 
 @test:Config
 function test_categorizeJiraKeys() {
-    io:println("\n\n\n\n\n");
     log:printInfo("test_function_categorieJiraKeys()");
-
-    string[] newKeys = ["KEY1","KEY2"];
-    string[] currentKeys = ["KEY2","KEY3"];
-
+    string[] newKeys = ["KEY1", "KEY2"];
+    string[] currentKeys = ["KEY2", "KEY3"];
     map result = categorizeJiraKeys(newKeys, currentKeys);
-    io:println(result);
 }
 
 // After Suite Function is used to stop the services

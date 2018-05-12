@@ -51,8 +51,7 @@ public function fetchSalesforceData(string|json jiraKeysOrNextRecordUrl) returns
             var connectorResponse = salesforceClientEP->getNextQueryResult(nextRecordUrl);
             match connectorResponse {
                 json jsonResponse => {
-                    io:println(jsonResponse);
-                    return { "success": true, "response": jsonResponse };
+                    return { "success": true, "response": jsonResponse, error: null };
                 }
                 sfdc:SalesforceConnectorError e => {
                     return { "sucess": false, "response": null, "error": check <json>e };
@@ -65,8 +64,7 @@ public function fetchSalesforceData(string|json jiraKeysOrNextRecordUrl) returns
             var connectorResponse = salesforceClientEP->getQueryResult(SOQuery);
             match connectorResponse {
                 json jsonResponse => {
-                    //io:println(jsonResponse);
-                    return { "success": true, "response": jsonResponse };
+                    return { "success": true, "response": jsonResponse, error: null };
                 }
                 sfdc:SalesforceConnectorError e => return { "sucess": false, "response": null, "error": check <json>e };
             }
@@ -105,4 +103,3 @@ function hasJiraKey(string[] list, string key) returns boolean {
     }
     return false;
 }
-

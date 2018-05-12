@@ -19,6 +19,7 @@
 import ballerina/log;
 import ballerina/mime;
 import ballerina/http;
+import ballerina/io;
 
 documentation { Returns the prepared URL
     P{{paths}} an array of paths prefixes
