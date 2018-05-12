@@ -20,7 +20,7 @@ function testStartSyncData() {
     log:printInfo("testStartSyncData Service");
 
     http:Request httpRequest = new;
-    var out = httpClient->get("/sync/salesforce/start", request = httpRequest);
+    var out = httpClient->post("/sync/salesforce/start", request = httpRequest);
     match out {
         http:Response resp => {
             io:println("hello");

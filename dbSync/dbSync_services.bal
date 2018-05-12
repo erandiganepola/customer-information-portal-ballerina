@@ -50,7 +50,7 @@ endpoint http:Listener listener {
 service<http:Service> dataSyncService bind listener {
 
     @http:ResourceConfig {
-        methods: ["GET"],
+        methods: ["POST"],
         path: "/start"
     }
     startSyncData(endpoint caller, http:Request request) {
@@ -59,19 +59,36 @@ service<http:Service> dataSyncService bind listener {
         _ = caller->respond(response);
 
         log:printInfo("Getting active JIRA keys...");
-        //string[] keysFromJira = check getJiraKeysFromJira();
-        string[] keysFromSfDb = check getJiraKeysFromDB();
-        io:println(keysFromSfDb);
-
-        //Get JIRA keys toBeDeleted and toBeUpserted
+        string[] keysFromJira;
+        match getJiraKeysFromJira() {
+            string[] keys => keysFromJira = keys;
+            error e => log:printError("Error occurred while getting JIRA keys. Error: " + e.message);
+        }
+        //string[] keysFromSfDb;
+        //match getJiraKeysFromDB() {
+        //    string[] keys => keysFromSfDb = keys;
+        //    error e => log:printError("Error occurred while getting JIRA keys. Error: " + e.message);
+        //}
+        //
+        ////Get JIRA keys toBeDeleted and toBeUpserted
         //log:printDebug("Categorizing keys to be deleted and upserted!");
-        //map categorizedJiraKeys = dc:categorizeJiraKeys(keysFromJira, keysFromSfDb);
-
-        //string[] jiraKeysToBeDeleted = check <string[]>categorizedJiraKeys.toBeDeleted;
-        //json[] jiraKeysToBeUpserted = check <json[]>categorizedJiraKeys.toBeUpserted;
-
-        log:printInfo("Starting sync with Salesforce DB...");
-
+        //map categorizedJiraKeys = categorizeJiraKeys(keysFromJira, keysFromSfDb);
+        //
+        //string[] jiraKeysToBeDeleted;
+        //match <string[]>categorizedJiraKeys.toBeDeleted {
+        //    string[] keys => jiraKeysToBeDeleted = keys;
+        //    error e => log:printError("Error occurred while casting <string[]>jiraKeysToBeDeleted.
+        //    Error: " + e.message);
+        //}
+        //json[] jiraKeysToBeUpserted;
+        //match <json[]>categorizedJiraKeys.toBeUpserted {
+        //    json[] keys => jiraKeysToBeUpserted = keys;
+        //    error e => log:printError("Error occurred while casting <string[]>jiraKeysToBeUpserted.
+        //    Error: " + e.message);
+        //}
+        //
+        //log:printInfo("Starting sync with Salesforce DB...");
+        //
         //log:printInfo("Deleting records from Salesforce DB...");
         //deleteJiraKeys(jiraKeysToBeDeleted);
 
@@ -79,21 +96,23 @@ service<http:Service> dataSyncService bind listener {
         http:Request httpRequest = new;
         map organizedSfDataMap;
         httpRequest.setJsonPayload(jiraKeysToBeUpserted);
-        var out = httpClientEP->post("/collector/salesforce/", request = httpRequest);
-        match out {
+        var sfResponse = httpClientEP->post("/collector/salesforce/", request = httpRequest);
+        match sfResponse {
             http:Response resp => {
                 log:printInfo("Fetching data from Salesforce API...");
-                json jsonPayload = check resp.getJsonPayload();
+                json jsonPayload = resp.getJsonPayload() but {
+                    error e => log:printError("Error occurred while receiving Json payload. Error: " + e.message)
+                };
                 json sfData = jsonPayload["response"];
-                io:println("SF data: " + sfData.toString());
+                //io:println("SF data: " + sfData.toString());
                 organizedSfDataMap = organizeSfData(sfData);
-                io:println(organizedSfDataMap);
+                //io:println(organizedSfDataMap);
 
                 log:printInfo("Upserting records into Salesforce DB...");
                 upsertDataIntoSfDb(organizedSfDataMap);
             }
-            error err => {
-                log:printError("Error occured when fetching data from Salesforce. Error: " + err.message);
+            error e => {
+                log:printError("Error occured when fetching data from Salesforce. Error: " + e.message);
             }
         }
     }

@@ -47,9 +47,10 @@ HAVING count(account_id)=1";
 
 @final string QUERY_TO_INSERT_VALUES_TO_ACCOUNT =
 "INSERT INTO Account (account_id, customer_name, customer_type, classification, account_owner,
-                  technical_owner, domain, primary_contact, timezone)
+                  technical_owner, domain, primary_contact, city, country, geocode_accuracy,
+                  latitude, longitude, postal_code, state, street)
 VALUES
-   (?,?,?,?,?,?,?,?,?)
+   (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
 ON DUPLICATE KEY UPDATE
    account_id = VALUES(account_id),
    customer_name = VALUES(customer_name),
@@ -59,7 +60,14 @@ ON DUPLICATE KEY UPDATE
    technical_owner = VALUES(technical_owner),
    domain = VALUES(domain),
    primary_contact = VALUES(primary_contact),
-   timezone = VALUES(timezone)";
+   city = VALUES(city),
+   country = VALUES(country),
+   geocode_accuracy = VALUES(geocode_accuracy),
+   latitude = VALUES(latitude),
+   longitude = VALUES(longitude),
+   postal_code = VALUES(postal_code),
+   state = VALUES(state),
+   street = VALUES(street)";
 
 @final string QUERY_TO_INSERT_VALUES_TO_OPPORTUNITY =
 "INSERT INTO Opportunity (opportunity_id, account_id)
