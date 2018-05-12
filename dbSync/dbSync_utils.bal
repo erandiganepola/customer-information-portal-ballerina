@@ -16,15 +16,21 @@
 // under the License.
 //
 
+import ballerina/log;
+import ballerina/sql;
 import ballerina/io;
 
 function organizeSfData(json resultFromSf) returns map {
-    json[] records = check <json[]>resultFromSf.records;
-    map<json[]> sfDataMap;
+    json[] records;
+    match <json[]>resultFromSf.records{
+        json[] res => records = res;
+        error e => log:printError("Error occurred while casting <json[]>resultFromSf.
+        Error: " + e.message);
+    }
 
+    map<json[]> sfDataMap;
     foreach record in records {
         string jiraKey = record["Support_Accounts__r"]["records"][0]["JIRA_Key__c"].toString();
-        io:println(jiraKey);
 
         json opportunity = {
             "Id": record["Id"],
@@ -62,10 +68,10 @@ function organizeSfData(json resultFromSf) returns map {
 }
 
         if (!sfDataMap.hasKey(jiraKey)) {
-            io:println("Adding key: " + jiraKey);
+            log:printDebug("Adding new Jira key: " + jiraKey);
             sfDataMap[jiraKey] = [opportunity];
         } else {
-            io:println("Has jira key: " + jiraKey);
+            log:printDebug("Adding data for existing Jira key: " + jiraKey);
             int index = (lengthof sfDataMap[jiraKey]);
 
             sfDataMap[jiraKey][index] = opportunity;
@@ -78,15 +84,17 @@ function organizeSfData(json resultFromSf) returns map {
 function getJiraKeysFromJira() returns string[]|error {
     //Get JIRA keys from JIRA API
     http:Request httpRequest = new;
-    var out = httpClientEP->get("/collector/jira/keys", request = httpRequest);
-    match out {
+    var jiraResponse = httpClientEP->get("/collector/jira/keys", request = httpRequest);
+    match jiraResponse {
         http:Response resp => {
-            io:println(resp.getJsonPayload());
-            return check <string[]>check resp.getJsonPayload();
+             json jsonResponse = resp.getJsonPayload()but {
+                error e => log:printError("Error occurred while receiving Json payload. Error: " + e.message)
+                };
+                return <string[]>jsonResponse;
         }
-        error err => {
-            log:printError("Failed to fetch JIRA keys from JIRA API. Error: " + err.message);
-            return err;
+        error e => {
+            log:printError("Failed to fetch JIRA keys from JIRA API. Error: " + e.message);
+            return e;
         }
     }
 }
@@ -96,125 +104,15 @@ function getJiraKeysFromDB() returns string[]|error {
     var selectResults = mysqlEP->select(QUERY_TO_GET_JIRA_KEYS_FROM_RECORD_STATUS_TABLE, ());
     match selectResults {
         table tableReturned => {
-            io:println(tableReturned);
             // TODO: Get JIRA keys from table
             string[] results;
             return results;
 
         }
-        error err => {
-            log:printError("<SELECT jira_key FROM 'RecordStatus'> failed! Error: " + err.message);
-            return err;
+        error e => {
+            log:printError("<SELECT jira_key FROM RecordStatus> failed! Error: " + e.message);
+            return e;
         }
-    }
-}
-
-//=================================================================================================//
-//Delete Jira keys from Salesforce database if those not exist in Jira
-
-function deleteJiraKeys(string[] jiraKeysToBeDeleted) {
-    string[] oppIds;
-    string[] oppIdsToBeDeleted;
-    string[] accountIds;
-    string[] accountIdsToBeDeleted;
-
-    log:printDebug("Starting transaction: deleting records from Salesforce DB...");
-    transaction with retries = 4, oncommit = onCommitFunction, onabort = onAbortFunction {
-        // Get JIRA keys from SF DB, RecordStatus table
-        var selectResultsJiraKeys = mysqlEP -> select(QUERY_TO_GET_JIRA_KEYS_FROM_RECORD_STATUS_TABLE, ());
-            match selectResultsJiraKeys {
-                table tableReturned => {
-                    io:println(tableReturned);
-                }
-                error err => {
-                    log:printError("SELECT query failed! Error: " + err.message);
-                }
-        }
-
-        // Get Opportunity Ids by jira keys
-        var selectResultsOppIds = mysqlEP -> select(dc:buildQueryFromTemplate(
-        QUERY_TEMPLATE_GET_OPPORTUNITY_IDS_BY_JIRA_KEYS, jiraKeysToBeDeleted), ());
-        match selectResultsOppIds {
-            table tableReturned => {
-                io:println(tableReturned);
-                string[] oppIds;
-            }
-            error err => {
-                log:printError("SELECT query failed! Error: " + err.message);
-            }
-        }
-
-        // Out of those Opportunity Ids, find which are not used in other Support Accounts to be deleted
-        var selectResultsOppIdsToDelete = mysqlEP -> select(dc:buildQueryFromTemplate(
-        QUERY_TEMPLATE_GET_OPPORTUNITY_IDS_TO_BE_DELETED, oppIds), ());
-        match selectResultsOppIdsToDelete {
-            table tableReturned => {
-                io:println(tableReturned);
-            string[] oppIdsToBeDeleted;
-            }
-            error err => {
-                log:printError("SELECT query failed! Error: " + err.message);
-            }
-        }
-
-        // Get Account Ids by Opportunity Ids
-        var selectResultsAccIds = mysqlEP -> select(dc:buildQueryFromTemplate(
-        QUERY_TEMPLATE_GET_ACCOUNT_IDS_BY_OPPORTUNITY_IDS, oppIdsToBeDeleted), ());
-        match selectResultsAccIds {
-            table tableReturned => {
-                io:println(tableReturned);
-                string[] accountIds;
-            }
-            error err => {
-                log:printError("SELECT query failed! Error: " + err.message);
-            }
-        }
-
-        // Get Account Ids to be deleted
-        var selectResultsAccIdsToDelete = mysqlEP -> select(dc:buildQueryFromTemplate(
-        QUERY_TEMPLATE_GET_ACCOUNT_IDS_TO_BE_DELETED, accountIds), ());
-        match selectResultsAccIdsToDelete {
-            table tableReturned => {
-                io:println(tableReturned);
-                string[] accountIdsToBeDeleted;
-            }
-            error err => {
-                log:printError("SELECT query failed! Error: " + err.message);
-            }
-        }
-
-        var result = mysqlEP -> update(dc:buildQueryFromTemplate
-        (QUERY_TEMPLATE_DELETE_FROM_SUPPORT_ACCOUNT_BY_JIRA_KEYS, jiraKeysToBeDeleted));
-
-        result = mysqlEP -> update(dc:buildQueryFromTemplate
-        (QUERY_TEMPLATE_DELETE_FROM_ACCOUNT_BY_ACCOUNT_IDS, accountIdsToBeDeleted));
-
-        result = mysqlEP -> update(dc:buildQueryFromTemplate
-        (QUERY_TEMPLATE_DELETE_FROM_OPPORTUNITY_BY_OPPORTUNITY_IDS, oppIdsToBeDeleted));
-
-        // Can do this with "ON DELETE CASCADE"
-        result = mysqlEP -> update(dc:buildQueryFromTemplate
-        (QUERY_TEMPLATE_DELETE_FROM_OPPORTUNITY_PRODUCT_BY_IDS, oppIdsToBeDeleted));
-
-        //TODO: Update BatchStatus table deletion_completed_time
-
-        match result {
-            int c => {
-                log:printDebug("Deletion transaction completed successfully!!");
-
-                // The transaction can be force aborted using the `abort` keyword at any time.
-                if (c == 0) {
-                    abort;
-                }
-            }
-            error err => {
-                // The transaction can be force retried using `retry` keyword at any time.
-                io:println(err);
-                retry;
-            }
-        }
-    } onretry {
-        io:println("Retrying transaction");
     }
 }
 
@@ -223,41 +121,35 @@ function deleteJiraKeys(string[] jiraKeysToBeDeleted) {
 
 function upsertDataIntoSfDb(map organizedDataMap){
     foreach upsertKey in organizedDataMap {
-        transaction with retries =3, oncommit = onCommitFunction, onabort = onAbortFunction {
+        transaction with retries =3, oncommit = onUpsertCommitFunction, onabort = onUpsertAbortFunction {
             log:printInfo("Upsertion transaction starting...");
             foreach key, value in organizedDataMap{
             //Start transaction
                 foreach opportunity in check <json[]>value{
-
-                string billingAddress =
-                    opportunity["Account"]["BillingAddress"]["city"].toString() + " " +
-                    opportunity["Account"]["BillingAddress"]["country"].toString() + " " +
-                    opportunity["Account"]["BillingAddress"]["geocodeAccuracy"].toString() + " " +
-                    opportunity["Account"]["BillingAddress"]["latitude"].toString() + " " +
-                    opportunity["Account"]["BillingAddress"]["longitude"].toString() + " " +
-                    opportunity["Account"]["BillingAddress"]["postalCode"].toString() + " " +
-                    opportunity["Account"]["BillingAddress"]["state"].toString() + " " +
-                    opportunity["Account"]["BillingAddress"]["street"].toString();
-
                 //Inserting to Account table
                 var accountResult = mysqlEP -> update(QUERY_TO_INSERT_VALUES_TO_ACCOUNT,
                 opportunity["Account"]["Id"].toString(), opportunity["Account"]["Name"].toString(),
                 opportunity["Account"]["Classification"].toString(), opportunity["Account"]["Rating"].toString(),
                 opportunity["Account"]["Owner"].toString(), opportunity["Account"]["TechnicalOwner"].toString(),
                 opportunity["Account"]["Industry"].toString(), opportunity["Account"]["Phone"].toString(),
-                billingAddress);
-                // todo Make billling address flat -> add more columns to table (city, street, etc.)
+                opportunity["Account"]["BillingAddress"]["city"].toString(),
+                opportunity["Account"]["BillingAddress"]["country"].toString(),
+                opportunity["Account"]["BillingAddress"]["geocodeAccuracy"].toString(),
+                opportunity["Account"]["BillingAddress"]["latitude"].toString(),
+                opportunity["Account"]["BillingAddress"]["longitude"].toString(),
+                opportunity["Account"]["BillingAddress"]["postalCode"].toString(),
+                opportunity["Account"]["BillingAddress"]["state"].toString(),
+                opportunity["Account"]["BillingAddress"]["street"].toString());
+
                 match accountResult {
                     int c => {
-                        io:println("Inserted count: " + c);
-                        // The transaction can be force aborted using the `abort` keyword at any time.
+                        log:printDebug("Inserted new row to Account");
                         if (c == 0) {
                             abort;
                         }
                     }
-                    error err => {
-                         //The transaction can be force retried using `retry` keyword at any time.
-                        io:println(err);
+                    error e => {
+                        log:printError("Failed when inserting to Account! Error: " + e.message);
                         retry;
                     }
                 }
@@ -268,15 +160,13 @@ function upsertDataIntoSfDb(map organizedDataMap){
                 opportunity["Account"]["Id"].toString());
                 match oppResult {
                     int c => {
-                        io:println("Inserted count: " + c);
-                        // The transaction can be force aborted using the `abort` keyword at any time.
+                        log:printDebug("Inserted new row to Opportunity");
                         if (c == 0) {
                             abort;
                         }
                     }
-                    error err => {
-                        // The transaction can be force retried using `retry` keyword at any time.
-                        io:println(err);
+                    error e => {
+                        log:printError("Failed when inserting to Opportunity! Error: " + e.message);
                         retry;
                     }
                 }
@@ -291,38 +181,41 @@ function upsertDataIntoSfDb(map organizedDataMap){
                     lineItem["Environment"].toString());
                     match lineItemsResult {
                         int c => {
-                            io:println("Inserted count: " + c);
-                            // The transaction can be force aborted using the `abort` keyword at any time.
+                            log:printDebug("Inserted new row to OpportunityProducts");
                             if (c ==0) {
                                 abort;
                             }
                         }
-                        error err => {
-                            // The transaction can be force retried using `retry` keyword at any time.
-                            io:println(err);
+                        error e => {
+                            log:printError("Failed when inserting to OpportunityProducts!
+                            Error: " + e.message);
                             retry;
                         }
                     }
                 }
 
                 //Inserting to SupportAccount table
+                    sql:Parameter para3 = { sqlType: sql:TYPE_DATE, value: opportunity["SupportAccount"]["StartDate"].toString() };
+                    io:println(para3);
+                    io:println(opportunity["SupportAccount"]["StartDate"]);
+sql:Parameter para4 = { sqlType: sql:TYPE_DATE, value: opportunity["SupportAccount"]["EndDate"].toString() };
+
                     var supportAccResult = mysqlEP -> update(QUERY_TO_INSERT_VALUES_TO_SUPPORT_ACCOUNT,
                     opportunity["SupportAccount"]["Id"].toString(),
                     opportunity["Id"].toString(),
                     opportunity["SupportAccount"]["JiraKey"].toString(),
-                    opportunity["SupportAccount"]["StartDate"].toString(),
-                    opportunity["SupportAccount"]["EndDate"].toString());
+                    para3,
+                    para4);
                     match supportAccResult {
                         int c => {
-                                    io:println("Inserted count: " + c);
-                                    // The transaction can be force aborted using the `abort` keyword at any time.
+                                log:printDebug("Inserted new row to SupportAccount");
                                 if (c == 0) {
                                     abort;
                                 }
                         }
-                        error err => {
-                            // The transaction can be force retried using `retry` keyword at any time.
-                            io:println(err);
+                        error e => {
+                            log:printError("Failed when inserting to SupportAccount!
+                            Error: " + e.message);
                             retry;
                         }
                     }
@@ -336,16 +229,12 @@ function upsertDataIntoSfDb(map organizedDataMap){
 }
 
 
-function onCommitFunction(string transactionId) {
-    log:printDebug("Successful! Upsertion transaction comitted with transaction ID: " + transactionId);
+function onUpsertCommitFunction(string transactionId) {
+    log:printInfo("Successful! Upsertion transaction comitted with transaction ID: " + transactionId);
 }
 
-function onAbortFunction(string transactionId) {
-    log:printDebug("Failed! Upsertion transaction aborted with transaction ID: " + transactionId);
-}
-
-function handleError(string message, error e, mysql:Client testDB) {
-    io:println(message + e.message);
+function onUpsertAbortFunction(string transactionId) {
+    log:printInfo("Failed! Upsertion transaction aborted with transaction ID: " + transactionId);
 }
 
 //================================================================================================//
@@ -397,8 +286,131 @@ public function categorizeJiraKeys(string[] newKeys, string[] currentKeys) retur
 function hasJiraKey(string[] list, string key) returns boolean {
     foreach (item in list){
         if (item == key){
-        return true;
+            return true;
         }
     }
     return false;
+}
+
+//TODO: Remove delete functionality
+//=================================================================================================//
+//Delete Jira keys from Salesforce database if those not exist in Jira
+
+function deleteJiraKeys(string[] jiraKeysToBeDeleted) {
+    string[] oppIds;
+    string[] oppIdsToBeDeleted;
+    string[] accountIds;
+    string[] accountIdsToBeDeleted;
+
+    log:printDebug("Starting transaction: deleting records from Salesforce DB...");
+    transaction with retries = 4, oncommit = onDeleteCommitFunction, onabort = onDeleteAbortFunction {
+    // Get JIRA keys from SF DB, RecordStatus table
+        var selectResultsJiraKeys = mysqlEP -> select(QUERY_TO_GET_JIRA_KEYS_FROM_RECORD_STATUS_TABLE, ());
+        match selectResultsJiraKeys {
+            table tableReturned => {
+                io:println(tableReturned);
+            }
+            error err => {
+                log:printError("SELECT query failed! Error: " + err.message);
+            }
+        }
+
+        // Get Opportunity Ids by jira keys
+        var selectResultsOppIds = mysqlEP -> select(dc:buildQueryFromTemplate(
+        QUERY_TEMPLATE_GET_OPPORTUNITY_IDS_BY_JIRA_KEYS, jiraKeysToBeDeleted), ());
+        match selectResultsOppIds {
+            table tableReturned => {
+                io:println(tableReturned);
+                string[] oppIds;
+            }
+            error err => {
+                log:printError("SELECT query failed! Error: " + err.message);
+            }
+        }
+
+        // Out of those Opportunity Ids, find which are not used in other Support Accounts to be deleted
+        var selectResultsOppIdsToDelete = mysqlEP -> select(dc:buildQueryFromTemplate(
+        QUERY_TEMPLATE_GET_OPPORTUNITY_IDS_TO_BE_DELETED, oppIds), ());
+        match selectResultsOppIdsToDelete {
+            table tableReturned => {
+                io:println(tableReturned);
+                string[] oppIdsToBeDeleted;
+            }
+            error err => {
+                log:printError("SELECT query failed! Error: " + err.message);
+            }
+        }
+
+        // Get Account Ids by Opportunity Ids
+        var selectResultsAccIds = mysqlEP -> select(dc:buildQueryFromTemplate(
+        QUERY_TEMPLATE_GET_ACCOUNT_IDS_BY_OPPORTUNITY_IDS, oppIdsToBeDeleted), ());
+        match selectResultsAccIds {
+            table tableReturned => {
+                io:println(tableReturned);
+                string[] accountIds;
+            }
+            error err => {
+                log:printError("SELECT query failed! Error: " + err.message);
+            }
+        }
+
+        // Get Account Ids to be deleted
+        var selectResultsAccIdsToDelete = mysqlEP -> select(dc:buildQueryFromTemplate(
+        QUERY_TEMPLATE_GET_ACCOUNT_IDS_TO_BE_DELETED, accountIds), ());
+        match selectResultsAccIdsToDelete {
+            table tableReturned => {
+                io:println(tableReturned);
+                string[] accountIdsToBeDeleted;
+            }
+            error err => {
+                log:printError("SELECT query failed! Error: " + err.message);
+            }
+        }
+
+        var result = mysqlEP -> update(dc:buildQueryFromTemplate
+        (QUERY_TEMPLATE_DELETE_FROM_SUPPORT_ACCOUNT_BY_JIRA_KEYS, jiraKeysToBeDeleted));
+
+        result = mysqlEP -> update(dc:buildQueryFromTemplate
+        (QUERY_TEMPLATE_DELETE_FROM_ACCOUNT_BY_ACCOUNT_IDS, accountIdsToBeDeleted));
+
+        result = mysqlEP -> update(dc:buildQueryFromTemplate
+        (QUERY_TEMPLATE_DELETE_FROM_OPPORTUNITY_BY_OPPORTUNITY_IDS, oppIdsToBeDeleted));
+
+        // Can do this with "ON DELETE CASCADE"
+        result = mysqlEP -> update(dc:buildQueryFromTemplate
+        (QUERY_TEMPLATE_DELETE_FROM_OPPORTUNITY_PRODUCT_BY_IDS, oppIdsToBeDeleted));
+
+        //TODO: Update BatchStatus table with deletion_completed_time
+
+        match result {
+            int c => {
+                log:printDebug("Deletion transaction completed successfully!!");
+                // The transaction can be force aborted using the `abort` keyword at any time.
+                if (c == 0) {
+                    abort;
+                }
+            }
+            error err => {
+                // The transaction can be force retried using `retry` keyword at any time.
+                io:println(err);
+                retry;
+            }
+        }
+    } onretry {
+        io:println("Retrying transaction");
+    }
+}
+
+function onDeleteCommitFunction(string transactionId) {
+    log:printDebug("Successful! Upsertion transaction comitted with transaction ID: " + transactionId);
+}
+
+function onDeleteAbortFunction(string transactionId) {
+    log:printDebug("Failed! Upsertion transaction aborted with transaction ID: " + transactionId);
+}
+
+function handleDeletionError(string message, error e, mysql:Client testDB) {
+    log:printError("Error occured during deletion. Error: " + e.message);
+
+io:println(message + e.message);
 }
