@@ -68,7 +68,27 @@ service<http:Service> dataCollector bind listener {
 
         var payloadIn = request.getJsonPayload();
         match payloadIn {
-            json jiraKeys => response.setJsonPayload(fetchSalesforceData(jiraKeys));
+            json jiraKeys => {
+                json sfResponse = fetchSalesforceData(jiraKeys);
+
+                if (sfResponse["success"].toString()=="false"){
+                    response.setJsonPayload(sfResponse);
+                }
+                else{
+                    json[] records = [sfResponse["response"]];
+                    string nextRecordsUrl = sfResponse["nextRecordsUrl"].toString();
+                    int i=1;
+                    //if the salesforce response is paginated
+                    while(nextRecordsUrl!="null"){
+                        io:println(nextRecordsUrl);
+                        sfResponse = fetchSalesforceData(nextRecordsUrl);
+                        records[i] = sfResponse["response"];
+                        nextRecordsUrl = sfResponse["nextRecordsUrl"].toString();
+                        i+=1;
+                    }
+                    response.setJsonPayload({ "success": true, "response": records, "error": null });
+                }
+            }
             error e => response.setJsonPayload({ "success": false, "response": null, "error": e.message });
         }
         _ = caller->respond(response);
