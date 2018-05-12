@@ -39,7 +39,6 @@ public function buildQueryFromTemplate(string template, json|string[] jiraKeys) 
     key_tuple = "(" + key_tuple + ")";
 
     string resultQuery = template.replace("<JIRA_KEY_LIST>", key_tuple);
-    io:println(resultQuery);
     return resultQuery;
 }
 
@@ -54,7 +53,7 @@ public function fetchSalesforceData(string|json jiraKeysOrNextRecordUrl) returns
                     return { "success": true, "response": jsonResponse, error: null };
                 }
                 sfdc:SalesforceConnectorError e => {
-                    return { "sucess": false, "response": null, "error": check <json>e };
+                    return { "success": false, "response": null, "error": check <json>e };
                 }
             }
         }
@@ -66,7 +65,7 @@ public function fetchSalesforceData(string|json jiraKeysOrNextRecordUrl) returns
                 json jsonResponse => {
                     return { "success": true, "response": jsonResponse, error: null };
                 }
-                sfdc:SalesforceConnectorError e => return { "sucess": false, "response": null, "error": check <json>e };
+                sfdc:SalesforceConnectorError e => return { "success": false, "response": null, "error": check <json>e };
             }
         }
     }
