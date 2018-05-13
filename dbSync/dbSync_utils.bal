@@ -21,11 +21,10 @@ import ballerina/sql;
 import ballerina/io;
 
 function organizeSfData(json resultFromSf) returns map {
-    json[] records;
-    match <json[]>resultFromSf.records{
+    json[] records = [];
+    match <json[]>resultFromSf.records {
         json[] res => records = res;
-        error e => log:printError("Error occurred while casting <json[]>resultFromSf.
-        Error: " + e.message);
+        error e => log:printError("Error occurred while casting <json[]>resultFromSf. Error: " + e.message);
     }
 
     map<json[]> sfDataMap;
@@ -39,7 +38,7 @@ function organizeSfData(json resultFromSf) returns map {
                 "Name": record["Account"]["Name"],
                 "Classification": record["Account"]["Account_Classification__c"],
                 "Owner": record["Account"]["Owner"]["Name"],
-                "Rating": record["Account"]["Rating"]["Name"],
+                "Rating": record["Account"]["Rating"],
                 "TechnicalOwner": record["Account"]["Technical_Owner__c"],
                 "Industry": record["Account"]["Industry"],
                 "Phone": record["Account"]["Phone"],
@@ -54,18 +53,18 @@ function organizeSfData(json resultFromSf) returns map {
             "OpportunityLineItems": []
         };
 
-            if(record["OpportunityLineItems"]["records"] != null){
-                foreach item in record["OpportunityLineItems"]["records"] {
-                    json lineItem = {
+        if (record["OpportunityLineItems"]["records"] != null){
+            foreach item in record["OpportunityLineItems"]["records"] {
+                json lineItem = {
                     "Id": item["Id"],
                     "Quantity": item["Quantity"],
                     "Environment": item["Environment__c"],
                     "Product": item["PricebookEntry"]["Name"]
-                    };
+                };
 
-                    opportunity["OpportunityLineItems"][lengthof opportunity["OpportunityLineItems"]] = lineItem;
-                }
-}
+                opportunity["OpportunityLineItems"][lengthof opportunity["OpportunityLineItems"]] = lineItem;
+            }
+        }
 
         if (!sfDataMap.hasKey(jiraKey)) {
             log:printDebug("Adding new Jira key: " + jiraKey);
@@ -87,10 +86,12 @@ function getJiraKeysFromJira() returns string[]|error {
     var jiraResponse = httpClientEP->get("/collector/jira/keys", request = httpRequest);
     match jiraResponse {
         http:Response resp => {
-             json jsonResponse = resp.getJsonPayload()but {
+            json jsonResponse = resp.getJsonPayload() but {
                 error e => log:printError("Error occurred while receiving Json payload. Error: " + e.message)
-                };
-                return <string[]>jsonResponse;
+            };
+
+            log:printDebug("Received JIRA keys response: " + jsonResponse.toString());
+            return <string[]>jsonResponse;
         }
         error e => {
             log:printError("Failed to fetch JIRA keys from JIRA API. Error: " + e.message);
@@ -116,22 +117,53 @@ function getJiraKeysFromDB() returns string[]|error {
     }
 }
 
+function upsertRecordStatus(string[] jiraKeys) returns boolean {
+    string values = "";
+    foreach key in jiraKeys {
+        values += string `,('{{key}}', NULL)`;
+    }
+
+    values = values.replaceFirst(",", "");
+
+    string q = QUERY_BULK_UPSERT_RECORD_STATUS.replace("<ENTRIES>", values);
+    log:printDebug("Record status bulk update: " + q);
+    var results = mysqlEP->update(q);
+    match results {
+        int c => {
+            log:printInfo(string `Inserted {{lengthof jiraKeys}} jira keys. Return value {{c}}`);
+            return c >= 0;
+        }
+        error e => {
+            log:printError("Unable to insert record status", err = e);
+            return false;
+        }
+    }
+
+    // TODO check whether all those keys were inserted with NULL completed_time
+}
+
 //=================================================================================================//
 // Upsert data into Salesforce database tables
+function upsertDataIntoSfDb(map organizedDataMap) {
+    foreach key, value in organizedDataMap{
+        log:printDebug("\n");
+        log:printInfo("Upserting transaction starting for jira key : " + key);
+        //Start transaction
+        transaction with retries = 3, oncommit = onUpsertCommitFunction, onabort = onUpsertAbortFunction {
+            // TODO lock record status row
+            // TODO get the batch_id from batch_status table and check if that's equal to mine
 
-function upsertDataIntoSfDb(map organizedDataMap){
-    foreach upsertKey in organizedDataMap {
-        transaction with retries =3, oncommit = onUpsertCommitFunction, onabort = onUpsertAbortFunction {
-            log:printInfo("Upsertion transaction starting...");
-            foreach key, value in organizedDataMap{
-            //Start transaction
-                foreach opportunity in check <json[]>value{
+            foreach opportunity in check <json[]>value {
                 //Inserting to Account table
-                var accountResult = mysqlEP -> update(QUERY_TO_INSERT_VALUES_TO_ACCOUNT,
-                    opportunity["Account"]["Id"].toString(), opportunity["Account"]["Name"].toString(),
-                    opportunity["Account"]["Classification"].toString(), opportunity["Account"]["Rating"].toString(),
-                    opportunity["Account"]["Owner"].toString(), opportunity["Account"]["TechnicalOwner"].toString(),
-                    opportunity["Account"]["Industry"].toString(), opportunity["Account"]["Phone"].toString(),
+                var accountResult = mysqlEP->update(QUERY_TO_INSERT_VALUES_TO_ACCOUNT,
+                    opportunity["Account"]["Id"].toString(),
+                    opportunity["Account"]["Name"].toString(),
+                    opportunity["Account"]["Classification"].toString(),
+                    opportunity["Account"]["Rating"].toString(),
+                    opportunity["Account"]["Owner"].toString(),
+                    opportunity["Account"]["TechnicalOwner"].toString(),
+                    opportunity["Account"]["Industry"].toString(),
+                    opportunity["Account"]["Phone"].toString(),
                     opportunity["Account"]["BillingAddress"]["city"].toString(),
                     opportunity["Account"]["BillingAddress"]["country"].toString(),
                     opportunity["Account"]["BillingAddress"]["geocodeAccuracy"].toString(),
@@ -143,87 +175,119 @@ function upsertDataIntoSfDb(map organizedDataMap){
 
                 match accountResult {
                     int c => {
-                        log:printDebug("Inserted new row to Account");
-                        if (c == 0) {
+                        if (c < 0) {
+                            log:printError("Unable to insert account for jira key: " + key);
                             abort;
+                        } else {
+                            log:printDebug("Inserted new row to Account");
                         }
                     }
                     error e => {
-                        log:printError("Failed when inserting to Account! Error: " + e.message);
                         retry;
                     }
                 }
 
                 //Inserting to Opportunity table
-                var oppResult = mysqlEP -> update(QUERY_TO_INSERT_VALUES_TO_OPPORTUNITY,
+                var oppResult = mysqlEP->update(QUERY_TO_INSERT_VALUES_TO_OPPORTUNITY,
                     opportunity["Id"].toString(),
                     opportunity["Account"]["Id"].toString());
                 match oppResult {
                     int c => {
-                        log:printDebug("Inserted new row to Opportunity");
-                        if (c == 0) {
+                        if (c < 0) {
+                            log:printError("Unable to insert opportunity for jira key: " + key);
                             abort;
+                        } else {
+                            log:printDebug("Inserted new row to Opportunity");
                         }
                     }
                     error e => {
-                        log:printError("Failed when inserting to Opportunity! Error: " + e.message);
                         retry;
                     }
                 }
 
                 //Inserting to OpportunityProducts table
-                foreach lineItem in opportunity["OpportunityLineItems"]{
+                log:printDebug(string `Inserting {{lengthof opportunity["OpportunityLineItems"]}} OpportunityProducts`);
+                foreach lineItem in opportunity["OpportunityLineItems"] {
                     var lineItemsResult = mysqlEP->update(QUERY_TO_INSERT_VALUES_TO_OPPORTUNITY_PRODUCTS,
-                        lineItem["Id"].toString(), opportunity["Id"].toString(),
-                        lineItem["Product"].toString(),
-                        lineItem["Product"].toString(),
-                        lineItem["Quantity"].toString(),
+                        lineItem["Id"].toString(), opportunity["Id"].toString(), lineItem["Product"].toString(),
+                        lineItem["Product"].toString(), lineItem["Quantity"].toString(),
                         lineItem["Environment"].toString());
+
                     match lineItemsResult {
                         int c => {
-                            log:printDebug("Inserted new row to OpportunityProducts");
-                            if (c ==0) {
+                            if (c < 0) {
+                                log:printError("Unable to insert opportunity product: " + lineItem.toString());
                                 abort;
                             }
                         }
                         error e => {
-                            log:printError("Failed when inserting to OpportunityProducts!
-                            Error: " + e.message);
                             retry;
                         }
                     }
                 }
+                log:printDebug("Inserted opportunity products");
 
                 //Inserting to SupportAccount table
-                    sql:Parameter para3 = { sqlType: sql:TYPE_DATE, value: opportunity["SupportAccount"]["StartDate"].toString() };
-                    io:println(para3);
-                    io:println(opportunity["SupportAccount"]["StartDate"]);
-sql:Parameter para4 = { sqlType: sql:TYPE_DATE, value: opportunity["SupportAccount"]["EndDate"].toString() };
+                sql:Parameter startDate = {
+                    sqlType: sql:TYPE_DATE,
+                    value: null
+                };
 
-                    var supportAccResult = mysqlEP -> update(QUERY_TO_INSERT_VALUES_TO_SUPPORT_ACCOUNT,
-                        opportunity["SupportAccount"]["Id"].toString(),
-                        opportunity["Id"].toString(),
-                        opportunity["SupportAccount"]["JiraKey"].toString(),
-                        para3,
-                        para4);
-                    match supportAccResult {
-                        int c => {
-                                log:printDebug("Inserted new row to SupportAccount");
-                                if (c == 0) {
-                                    abort;
-                                }
-                        }
-                        error e => {
-                            log:printError("Failed when inserting to SupportAccount!
-                            Error: " + e.message);
-                            retry;
+                sql:Parameter endDate = {
+                    sqlType: sql:TYPE_DATE,
+                    value: null
+                };
+
+                if (opportunity["SupportAccount"]["StartDate"] != ()){
+                    startDate = {
+                        sqlType: sql:TYPE_DATE,
+                        value: opportunity["SupportAccount"]["StartDate"].toString()
+                    };
+                }
+
+                if (opportunity["SupportAccount"]["EndDate"] != ()){
+                    endDate = {
+                        sqlType: sql:TYPE_DATE,
+                        value: opportunity["SupportAccount"]["EndDate"].toString()
+                    };
+                }
+                var supportAccResult = mysqlEP->update(QUERY_TO_INSERT_VALUES_TO_SUPPORT_ACCOUNT,
+                    opportunity["SupportAccount"]["Id"].toString(), opportunity["Id"].toString(),
+                    opportunity["SupportAccount"]["JiraKey"].toString(), startDate, endDate);
+                match supportAccResult {
+                    int c => {
+                        if (c < 0) {
+                            log:printError("Unable to insert support account for jira key: " + key);
+                            abort;
+                        } else {
+                            log:printDebug("Inserted new row to SupportAccount");
                         }
                     }
+                    error e => {
+                        //log:printError("Error ", err=e);
+                        retry;
+                    }
+                }
+            }
+
+            log:printDebug("All done for Jira key " + key + ". Updating record status");
+            var result = mysqlEP->update(QUERY_UPDATE_RECORD_STATUS, key);
+            match result {
+                int c => {
+                    if (c < 0) {
+                        log:printError("Unable to update record status for jira key: " + key);
+                        abort;
+                    } else {
+                        log:printDebug("Updated record status for jira key: " + key);
+                    }
+                }
+                error e => {
+                    retry;
                 }
             }
         }
         onretry {
-            log:printInfo("Retrying transaction...");
+            log:printWarn("Retrying transaction...");
         }
     }
 }
@@ -258,7 +322,7 @@ public function buildQueryFromTemplate(string template, json|string[] jiraKeys) 
     key_tuple = "(" + key_tuple + ")";
 
     string resultQuery = template.replace("<JIRA_KEY_LIST>", key_tuple);
-    io:println(resultQuery);
+    //io:println(resultQuery);
     return resultQuery;
 }
 
@@ -305,7 +369,7 @@ function deleteJiraKeys(string[] jiraKeysToBeDeleted) {
     log:printDebug("Starting transaction: deleting records from Salesforce DB...");
     transaction with retries = 4, oncommit = onDeleteCommitFunction, onabort = onDeleteAbortFunction {
     // Get JIRA keys from SF DB, RecordStatus table
-        var selectResultsJiraKeys = mysqlEP -> select(QUERY_TO_GET_JIRA_KEYS_FROM_RECORD_STATUS_TABLE, ());
+        var selectResultsJiraKeys = mysqlEP->select(QUERY_TO_GET_JIRA_KEYS_FROM_RECORD_STATUS_TABLE, ());
         match selectResultsJiraKeys {
             table tableReturned => {
                 io:println(tableReturned);
@@ -316,8 +380,9 @@ function deleteJiraKeys(string[] jiraKeysToBeDeleted) {
         }
 
         // Get Opportunity Ids by jira keys
-        var selectResultsOppIds = mysqlEP -> select(dc:buildQueryFromTemplate(
-        QUERY_TEMPLATE_GET_OPPORTUNITY_IDS_BY_JIRA_KEYS, jiraKeysToBeDeleted), ());
+        var selectResultsOppIds = mysqlEP->select(dc:buildQueryFromTemplate(
+                                                      QUERY_TEMPLATE_GET_OPPORTUNITY_IDS_BY_JIRA_KEYS,
+                                                      jiraKeysToBeDeleted), ());
         match selectResultsOppIds {
             table tableReturned => {
                 io:println(tableReturned);
@@ -329,8 +394,9 @@ function deleteJiraKeys(string[] jiraKeysToBeDeleted) {
         }
 
         // Out of those Opportunity Ids, find which are not used in other Support Accounts to be deleted
-        var selectResultsOppIdsToDelete = mysqlEP -> select(dc:buildQueryFromTemplate(
-        QUERY_TEMPLATE_GET_OPPORTUNITY_IDS_TO_BE_DELETED, oppIds), ());
+        var selectResultsOppIdsToDelete = mysqlEP->select(dc:buildQueryFromTemplate(
+                                                              QUERY_TEMPLATE_GET_OPPORTUNITY_IDS_TO_BE_DELETED, oppIds),
+            ());
         match selectResultsOppIdsToDelete {
             table tableReturned => {
                 io:println(tableReturned);
@@ -342,8 +408,9 @@ function deleteJiraKeys(string[] jiraKeysToBeDeleted) {
         }
 
         // Get Account Ids by Opportunity Ids
-        var selectResultsAccIds = mysqlEP -> select(dc:buildQueryFromTemplate(
-        QUERY_TEMPLATE_GET_ACCOUNT_IDS_BY_OPPORTUNITY_IDS, oppIdsToBeDeleted), ());
+        var selectResultsAccIds = mysqlEP->select(dc:buildQueryFromTemplate(
+                                                      QUERY_TEMPLATE_GET_ACCOUNT_IDS_BY_OPPORTUNITY_IDS,
+                                                      oppIdsToBeDeleted), ());
         match selectResultsAccIds {
             table tableReturned => {
                 io:println(tableReturned);
@@ -355,8 +422,9 @@ function deleteJiraKeys(string[] jiraKeysToBeDeleted) {
         }
 
         // Get Account Ids to be deleted
-        var selectResultsAccIdsToDelete = mysqlEP -> select(dc:buildQueryFromTemplate(
-        QUERY_TEMPLATE_GET_ACCOUNT_IDS_TO_BE_DELETED, accountIds), ());
+        var selectResultsAccIdsToDelete = mysqlEP->select(dc:buildQueryFromTemplate(
+                                                              QUERY_TEMPLATE_GET_ACCOUNT_IDS_TO_BE_DELETED, accountIds),
+            ());
         match selectResultsAccIdsToDelete {
             table tableReturned => {
                 io:println(tableReturned);
@@ -367,17 +435,17 @@ function deleteJiraKeys(string[] jiraKeysToBeDeleted) {
             }
         }
 
-        var result = mysqlEP -> update(dc:buildQueryFromTemplate
+        var result = mysqlEP->update(dc:buildQueryFromTemplate
             (QUERY_TEMPLATE_DELETE_FROM_SUPPORT_ACCOUNT_BY_JIRA_KEYS, jiraKeysToBeDeleted));
 
-        result = mysqlEP -> update(dc:buildQueryFromTemplate
+        result = mysqlEP->update(dc:buildQueryFromTemplate
             (QUERY_TEMPLATE_DELETE_FROM_ACCOUNT_BY_ACCOUNT_IDS, accountIdsToBeDeleted));
 
-        result = mysqlEP -> update(dc:buildQueryFromTemplate
+        result = mysqlEP->update(dc:buildQueryFromTemplate
             (QUERY_TEMPLATE_DELETE_FROM_OPPORTUNITY_BY_OPPORTUNITY_IDS, oppIdsToBeDeleted));
 
         // Can do this with "ON DELETE CASCADE"
-        result = mysqlEP -> update(dc:buildQueryFromTemplate
+        result = mysqlEP->update(dc:buildQueryFromTemplate
             (QUERY_TEMPLATE_DELETE_FROM_OPPORTUNITY_PRODUCT_BY_IDS, oppIdsToBeDeleted));
 
         //TODO: Update BatchStatus table with deletion_completed_time
@@ -390,9 +458,7 @@ function deleteJiraKeys(string[] jiraKeysToBeDeleted) {
                     abort;
                 }
             }
-            error err => {
-                // The transaction can be force retried using `retry` keyword at any time.
-                io:println(err);
+            error e => {
                 retry;
             }
         }
@@ -406,11 +472,10 @@ function onDeleteCommitFunction(string transactionId) {
 }
 
 function onDeleteAbortFunction(string transactionId) {
-    log:printDebug("Failed! Upsertion transaction aborted with transaction ID: " + transactionId);
+    log:printDebug("Failed! Upserting transaction aborted with transaction ID: " + transactionId);
 }
 
 function handleDeletionError(string message, error e, mysql:Client testDB) {
     log:printError("Error occured during deletion. Error: " + e.message);
-
-io:println(message + e.message);
+    io:println(message + e.message);
 }
