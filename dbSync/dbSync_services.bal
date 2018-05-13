@@ -21,6 +21,7 @@ import ballerina/io;
 import ballerina/http;
 import ballerina/config;
 import ballerina/log;
+import ballerina/system;
 import sfdc37;
 import dataCollector as dc;
 
@@ -59,92 +60,39 @@ service<http:Service> dataSyncService bind listener {
         http:Response response = new;
         _ = caller->respond(response);
 
-        // TODO generate UUID and update batch_id with that
-        // TODO check batch status
-
-        log:printInfo("Getting active JIRA keys...");
-        string[] keysFromJira;
-        match getJiraKeysFromJira() {
-            string[] keys => keysFromJira = keys;
-            error e => log:printError("Error occurred while getting JIRA keys. Error: " + e.message);
-        }
-        //string[] keysFromSfDb;
-        //match getJiraKeysFromDB() {
-        //    string[] keys => keysFromSfDb = keys;
-        //    error e => log:printError("Error occurred while getting JIRA keys. Error: " + e.message);
-        //}
-        //
-        ////Get JIRA keys toBeDeleted and toBeUpserted
-        //log:printDebug("Categorizing keys to be deleted and upserted!");
-        //map categorizedJiraKeys = categorizeJiraKeys(keysFromJira, keysFromSfDb);
-        //
-        //string[] jiraKeysToBeDeleted;
-        //match <string[]>categorizedJiraKeys.toBeDeleted {
-        //    string[] keys => jiraKeysToBeDeleted = keys;
-        //    error e => log:printError("Error occurred while casting <string[]>jiraKeysToBeDeleted.
-        //    Error: " + e.message);
-        //}
-        //json[] jiraKeysToBeUpserted;
-        //match <json[]>categorizedJiraKeys.toBeUpserted {
-        //    json[] keys => jiraKeysToBeUpserted = keys;
-        //    error e => log:printError("Error occurred while casting <string[]>jiraKeysToBeUpserted.
-        //    Error: " + e.message);
-        //}
-        //
-        //log:printInfo("Starting sync with Salesforce DB...");
-        //
-        //log:printInfo("Deleting records from Salesforce DB...");
-        //deleteJiraKeys(jiraKeysToBeDeleted);
-
-        log:printInfo("Fetching data from Salesforce API ...");
-        http:Request httpRequest = new;
-        httpRequest.setJsonPayload(jiraKeysToBeUpserted);
-        var sfResponse = httpClientEP->post("/collector/salesforce/", request = httpRequest);
-        // Fetched salesforce data for given jira keys
-        match sfResponse {
-            http:Response resp => {
-                match resp.getJsonPayload() {
-                    json jsonPayload => {
-
-                        log:printDebug("Received payload from salesforce");
-
-                        // Got json payload. Now check whether request was successful
-                        if (jsonPayload == ()){
-                            log:printError("No data returned from salesforce API");
-                        } else {
-                            match <json[]>jsonPayload["response"]{
-                                json[] records => {
-                                    log:printDebug((lengthof records) + " salesforce records fetched");
-
-                                    if (lengthof records == 0) {
-                                        log:printWarn("No SF record found. Aborting");
-                                    } else {
-                                        map organizedSfDataMap = organizeSfData(records);
-
-                                        log:printInfo("Updating record statuses");
-                                        if (upsertRecordStatus(organizedSfDataMap.keys())){
-                                            log:printInfo("Upserting records into Salesforce DB ...");
-                                            upsertDataIntoSfDb(organizedSfDataMap);
-
-                                            // TODO if all jira keys' status are ok, update batch status
-                                        } else {
-                                            log:printError("Unable to insert record status properly. Aborting");
-                                        }
-                                    }
-                                }
-                                error e => {
-                                    log:printError("Unable to fetch SF records", err = e);
-                                }
+        string batchId = system:uuid().substring(0, 32);
+        // update batch ID and check batch status
+        match updateUuidAndGetBatchStatus(batchId) {
+            BatchStatus bs => {
+                if (bs.state == BATCH_STATUS_COMPLETED){
+                    // Nothing to do
+                    log:printInfo("Last batch has completed successfully. Nothong to do. Aborting");
+                } else if (bs.state == BATCH_STATUS_SYNC){
+                    // Do a full sync
+                    // TODO Set batch state to IN_PROGRESS
+                    log:printInfo("Starting a full sync");
+                    if (clearRecordStatusTable()){
+                        log:printDebug("Getting active JIRA keys from JIRA");
+                        match getJiraKeysFromJira() {
+                            string[] jiraKeys => {
+                                //syncSfForJiraKeys(jiraKeys);
+                                syncSfForJiraKeys(batchId, jiraKeysToBeUpserted);
                             }
+                            error e => log:printError("Error occurred while getting JIRA keys. Error: " + e.message);
                         }
+                    } else {
+                        log:printWarn("Couldn't clear record status table. Aborting");
                     }
-                    error e => {
-                        log:printError("Error occurred while receiving Json payload", err = e);
-                    }
+                } else if (bs.state == BATCH_STATUS_IN_PROGRESS){
+                    // Complete records which haven't been completed
+                    log:printInfo("Starting completing incompleted records");
+                    string[] jiraKeys = getIncompletedRecordJiraKeys();
+                    syncSfForJiraKeys(batchId, jiraKeys);
                 }
             }
-            error e => {
-                log:printError("Error occured when fetching data from Salesforce. Error: " + e.message);
+            () => {
+                // No sync request or anything. Ignore
+                log:printInfo("No state found in BatchStatus table. Aborting");
             }
         }
     }
