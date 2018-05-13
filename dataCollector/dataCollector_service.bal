@@ -98,21 +98,7 @@ service<http:Service> dataCollector bind listener {
         _ = caller->respond(response);
     }
 
-    @http:ResourceConfig {
-        methods: ["POST"],
-        path: "/salesforce/next"
-    }
-    getPaginatedDataFromSF(endpoint caller, http:Request request) {
 
-        http:Response response = new;
-
-        var payloadIn = request.getJsonPayload();
-        match payloadIn {
-            json nextRecordUrl => response.setJsonPayload(fetchSalesforceData(nextRecordUrl.toString()));
-            error e => response.setJsonPayload({ "success": false, "response": null, "error": e.message });
-        }
-        _ = caller->respond(response);
-    }
 
     @http:ResourceConfig {
         methods: ["GET"],
