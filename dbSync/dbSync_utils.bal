@@ -20,16 +20,13 @@ import ballerina/log;
 import ballerina/sql;
 import ballerina/io;
 
-function organizeSfData(json resultFromSf) returns map {
-    json[] records = [];
-    match <json[]>resultFromSf.records {
-        json[] res => records = res;
-        error e => log:printError("Error occurred while casting <json[]>resultFromSf. Error: " + e.message);
-    }
-
+function organizeSfData(json[] records) returns map {
     map<json[]> sfDataMap;
     foreach record in records {
         string jiraKey = record["Support_Accounts__r"]["records"][0]["JIRA_Key__c"].toString();
+        if (jiraKey == () || jiraKey == "null") {
+            io:println(record["Support_Accounts__r"]);
+        }
 
         json opportunity = {
             "Id": record["Id"],
@@ -118,6 +115,7 @@ function getJiraKeysFromDB() returns string[]|error {
 }
 
 function upsertRecordStatus(string[] jiraKeys) returns boolean {
+    log:printDebug("Upserting " + lengthof jiraKeys + "");
     string values = "";
     foreach key in jiraKeys {
         values += string `,('{{key}}', NULL)`;
@@ -150,8 +148,8 @@ function upsertDataIntoSfDb(map organizedDataMap) {
         log:printInfo("Upserting transaction starting for jira key : " + key);
         //Start transaction
         transaction with retries = 3, oncommit = onUpsertCommitFunction, onabort = onUpsertAbortFunction {
-            // TODO lock record status row
-            // TODO get the batch_id from batch_status table and check if that's equal to mine
+        // TODO lock record status row
+        // TODO get the batch_id from batch_status table and check if that's equal to mine
 
             foreach opportunity in check <json[]>value {
                 //Inserting to Account table

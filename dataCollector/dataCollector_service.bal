@@ -74,16 +74,20 @@ service<http:Service> dataCollector bind listener {
                 if (sfResponse["success"].toString()=="false"){
                     response.setJsonPayload(sfResponse);
                 }
-                else{
-                    json[] records = [sfResponse["response"]];
-                    string nextRecordsUrl = sfResponse["nextRecordsUrl"].toString();
-                    int i=1;
+                else {
+                    json[] records = check <json[]>sfResponse["response"]["records"];
+                    string nextRecordsUrl = sfResponse["response"]["nextRecordsUrl"].toString();
                     //if the salesforce response is paginated
-                    while(nextRecordsUrl!="null"){
+                    while(nextRecordsUrl!="null") {
+                        int i = lengthof records;
                         io:println(nextRecordsUrl);
                         sfResponse = fetchSalesforceData(nextRecordsUrl);
-                        records[i] = sfResponse["response"];
-                        nextRecordsUrl = sfResponse["nextRecordsUrl"].toString();
+                        json[] nextRecords = check <json[]>sfResponse["response"]["records"];
+                        foreach record in nextRecords{
+                            records[i]=record;
+                            i++;
+                        }
+                        nextRecordsUrl = sfResponse["response"]["nextRecordsUrl"].toString();
                         i+=1;
                     }
                     response.setJsonPayload({ "success": true, "response": records, "error": null });

@@ -106,28 +106,34 @@ service<http:Service> dataSyncService bind listener {
                 match resp.getJsonPayload() {
                     json jsonPayload => {
 
-                        log:printDebug("Received payload from salesforce: " + jsonPayload.toString());
+                        log:printDebug("Received payload from salesforce");
 
                         // Got json payload. Now check whether request was successful
                         if (jsonPayload == ()){
                             log:printError("No data returned from salesforce API");
                         } else {
-                            json sfData = jsonPayload["response"];
-                            log:printDebug("Salesforce data fetched");
+                            match <json[]>jsonPayload["response"]{
+                                json[] records => {
+                                    log:printDebug((lengthof records) + " salesforce records fetched");
 
-                            if (sfData == ()){
-                                log:printError("Couldn't fecth salesforce data");
-                            } else {
-                                map organizedSfDataMap = organizeSfData(sfData);
+                                    if (lengthof records == 0) {
+                                        log:printWarn("No SF record found. Aborting");
+                                    } else {
+                                        map organizedSfDataMap = organizeSfData(records);
 
-                                log:printInfo("Updating record statuses");
-                                if (upsertRecordStatus(organizedSfDataMap.keys())){
-                                    log:printInfo("Upserting records into Salesforce DB ...");
-                                    upsertDataIntoSfDb(organizedSfDataMap);
+                                        log:printInfo("Updating record statuses");
+                                        if (upsertRecordStatus(organizedSfDataMap.keys())){
+                                            log:printInfo("Upserting records into Salesforce DB ...");
+                                            upsertDataIntoSfDb(organizedSfDataMap);
 
-                                    // TODO if all jira keys' status are ok, update batch status
-                                } else {
-                                    log:printError("Unable to insert record status properly. Aborting");
+                                            // TODO if all jira keys' status are ok, update batch status
+                                        } else {
+                                            log:printError("Unable to insert record status properly. Aborting");
+                                        }
+                                    }
+                                }
+                                error e => {
+                                    log:printError("Unable to fetch SF records", err = e);
                                 }
                             }
                         }
