@@ -38,7 +38,7 @@ function organizeSfData(json resultFromSf) returns map {
                 "Name": record["Account"]["Name"],
                 "Classification": record["Account"]["Account_Classification__c"],
                 "Owner": record["Account"]["Owner"]["Name"],
-                "Rating": record["Account"]["Rating"]["Name"],
+                "Rating": record["Account"]["Rating"],
                 "TechnicalOwner": record["Account"]["Technical_Owner__c"],
                 "Industry": record["Account"]["Industry"],
                 "Phone": record["Account"]["Phone"],
@@ -138,22 +138,32 @@ function upsertRecordStatus(string[] jiraKeys) returns boolean {
             return false;
         }
     }
+
+    // TODO check whether all those keys were inserted with NULL completed_time
 }
 
 //=================================================================================================//
 // Upsert data into Salesforce database tables
 function upsertDataIntoSfDb(map organizedDataMap) {
     foreach key, value in organizedDataMap{
-        log:printInfo("Upsertion transaction starting for jira key : " + key);
+        log:printDebug("\n");
+        log:printInfo("Upserting transaction starting for jira key : " + key);
         //Start transaction
         transaction with retries = 3, oncommit = onUpsertCommitFunction, onabort = onUpsertAbortFunction {
+            // TODO lock record status row
+            // TODO get the batch_id from batch_status table and check if that's equal to mine
+
             foreach opportunity in check <json[]>value {
                 //Inserting to Account table
                 var accountResult = mysqlEP->update(QUERY_TO_INSERT_VALUES_TO_ACCOUNT,
-                    opportunity["Account"]["Id"].toString(), opportunity["Account"]["Name"].toString(),
-                    opportunity["Account"]["Classification"].toString(), opportunity["Account"]["Rating"].toString(),
-                    opportunity["Account"]["Owner"].toString(), opportunity["Account"]["TechnicalOwner"].toString(),
-                    opportunity["Account"]["Industry"].toString(), opportunity["Account"]["Phone"].toString(),
+                    opportunity["Account"]["Id"].toString(),
+                    opportunity["Account"]["Name"].toString(),
+                    opportunity["Account"]["Classification"].toString(),
+                    opportunity["Account"]["Rating"].toString(),
+                    opportunity["Account"]["Owner"].toString(),
+                    opportunity["Account"]["TechnicalOwner"].toString(),
+                    opportunity["Account"]["Industry"].toString(),
+                    opportunity["Account"]["Phone"].toString(),
                     opportunity["Account"]["BillingAddress"]["city"].toString(),
                     opportunity["Account"]["BillingAddress"]["country"].toString(),
                     opportunity["Account"]["BillingAddress"]["geocodeAccuracy"].toString(),
@@ -165,9 +175,11 @@ function upsertDataIntoSfDb(map organizedDataMap) {
 
                 match accountResult {
                     int c => {
-                        log:printDebug("Inserted new row to Account");
-                        if (c == 0) {
+                        if (c < 0) {
+                            log:printError("Unable to insert account for jira key: " + key);
                             abort;
+                        } else {
+                            log:printDebug("Inserted new row to Account");
                         }
                     }
                     error e => {
@@ -181,9 +193,11 @@ function upsertDataIntoSfDb(map organizedDataMap) {
                     opportunity["Account"]["Id"].toString());
                 match oppResult {
                     int c => {
-                        log:printDebug("Inserted new row to Opportunity");
-                        if (c == 0) {
+                        if (c < 0) {
+                            log:printError("Unable to insert opportunity for jira key: " + key);
                             abort;
+                        } else {
+                            log:printDebug("Inserted new row to Opportunity");
                         }
                     }
                     error e => {
@@ -192,17 +206,17 @@ function upsertDataIntoSfDb(map organizedDataMap) {
                 }
 
                 //Inserting to OpportunityProducts table
-                foreach lineItem in opportunity["OpportunityLineItems"]{
+                log:printDebug(string `Inserting {{lengthof opportunity["OpportunityLineItems"]}} OpportunityProducts`);
+                foreach lineItem in opportunity["OpportunityLineItems"] {
                     var lineItemsResult = mysqlEP->update(QUERY_TO_INSERT_VALUES_TO_OPPORTUNITY_PRODUCTS,
-                        lineItem["Id"].toString(), opportunity["Id"].toString(),
-                        lineItem["Product"].toString(),
-                        lineItem["Product"].toString(),
-                        lineItem["Quantity"].toString(),
+                        lineItem["Id"].toString(), opportunity["Id"].toString(), lineItem["Product"].toString(),
+                        lineItem["Product"].toString(), lineItem["Quantity"].toString(),
                         lineItem["Environment"].toString());
+
                     match lineItemsResult {
                         int c => {
-                            log:printDebug("Inserted new row to OpportunityProducts");
-                            if (c == 0) {
+                            if (c < 0) {
+                                log:printError("Unable to insert opportunity product: " + lineItem.toString());
                                 abort;
                             }
                         }
@@ -211,45 +225,64 @@ function upsertDataIntoSfDb(map organizedDataMap) {
                         }
                     }
                 }
+                log:printDebug("Inserted opportunity products");
 
                 //Inserting to SupportAccount table
-                sql:Parameter para3 = {
+                sql:Parameter startDate = {
                     sqlType: sql:TYPE_DATE,
-                    value: opportunity["SupportAccount"]["StartDate"].toString()
-                };
-                io:println(para3);
-                io:println(opportunity["SupportAccount"]["StartDate"]);
-                sql:Parameter para4 = {
-                    sqlType: sql:TYPE_DATE,
-                    value: opportunity["SupportAccount"]["EndDate"].toString()
+                    value: null
                 };
 
+                sql:Parameter endDate = {
+                    sqlType: sql:TYPE_DATE,
+                    value: null
+                };
+
+                if (opportunity["SupportAccount"]["StartDate"] != ()){
+                    startDate = {
+                        sqlType: sql:TYPE_DATE,
+                        value: opportunity["SupportAccount"]["StartDate"].toString()
+                    };
+                }
+
+                if (opportunity["SupportAccount"]["EndDate"] != ()){
+                    endDate = {
+                        sqlType: sql:TYPE_DATE,
+                        value: opportunity["SupportAccount"]["EndDate"].toString()
+                    };
+                }
                 var supportAccResult = mysqlEP->update(QUERY_TO_INSERT_VALUES_TO_SUPPORT_ACCOUNT,
-                    opportunity["SupportAccount"]["Id"].toString(),
-                    opportunity["Id"].toString(),
-                    opportunity["SupportAccount"]["JiraKey"].toString(),
-                    para3,
-                    para4);
+                    opportunity["SupportAccount"]["Id"].toString(), opportunity["Id"].toString(),
+                    opportunity["SupportAccount"]["JiraKey"].toString(), startDate, endDate);
                 match supportAccResult {
                     int c => {
-                        log:printDebug("Inserted new row to SupportAccount");
-                        if (c == 0) {
+                        if (c < 0) {
+                            log:printError("Unable to insert support account for jira key: " + key);
                             abort;
+                        } else {
+                            log:printDebug("Inserted new row to SupportAccount");
                         }
                     }
                     error e => {
+                        //log:printError("Error ", err=e);
                         retry;
                     }
                 }
+            }
 
-                var result = mysqlEP->update("UPDATE RecordStatus SET completed_time=now() WHERE jira_key=?", key);
-                match result {
-                    int c => {
+            log:printDebug("All done for Jira key " + key + ". Updating record status");
+            var result = mysqlEP->update(QUERY_UPDATE_RECORD_STATUS, key);
+            match result {
+                int c => {
+                    if (c < 0) {
+                        log:printError("Unable to update record status for jira key: " + key);
+                        abort;
+                    } else {
                         log:printDebug("Updated record status for jira key: " + key);
                     }
-                    error e => {
-                        abort;
-                    }
+                }
+                error e => {
+                    retry;
                 }
             }
         }

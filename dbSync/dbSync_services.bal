@@ -59,6 +59,9 @@ service<http:Service> dataSyncService bind listener {
         http:Response response = new;
         _ = caller->respond(response);
 
+        // TODO generate UUID and update batch_id with that
+        // TODO check batch status
+
         log:printInfo("Getting active JIRA keys...");
         string[] keysFromJira;
         match getJiraKeysFromJira() {
@@ -116,12 +119,13 @@ service<http:Service> dataSyncService bind listener {
                                 log:printError("Couldn't fecth salesforce data");
                             } else {
                                 map organizedSfDataMap = organizeSfData(sfData);
-                                //io:println(organizedSfDataMap);
 
                                 log:printInfo("Updating record statuses");
                                 if (upsertRecordStatus(organizedSfDataMap.keys())){
                                     log:printInfo("Upserting records into Salesforce DB ...");
                                     upsertDataIntoSfDb(organizedSfDataMap);
+
+                                    // TODO if all jira keys' status are ok, update batch status
                                 } else {
                                     log:printError("Unable to insert record status properly. Aborting");
                                 }

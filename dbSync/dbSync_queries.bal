@@ -22,6 +22,8 @@ ON DUPLICATE KEY UPDATE
     jira_key = VALUES(jira_key),
     completed_time = NULL";
 
+@final string QUERY_UPDATE_RECORD_STATUS = "UPDATE RecordStatus SET completed_time=now() WHERE jira_key=?";
+
 @final string QUERY_TO_GET_JIRA_KEYS_FROM_RECORD_STATUS_TABLE =
 "SELECT jira_key FROM RecordStatus";
 
