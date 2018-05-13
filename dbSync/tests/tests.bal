@@ -27,6 +27,7 @@ function testStartSyncData() {
         }
         //http:Response resp => io:println("hello");
         error e => {
+            io:println(e);
             test:assertFail(msg = e.message);
         }
     }

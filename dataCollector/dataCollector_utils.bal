@@ -54,7 +54,7 @@ public function fetchSalesforceData(string|json jiraKeysOrNextRecordUrl) returns
                     return { "success": true, "response": jsonResponse, error: null };
                 }
                 sfdc:SalesforceConnectorError e => {
-                    return { "sucess": false, "response": null, "error": check <json>e };
+                    return { "success": false, "response": null, "error": check <json>e };
                 }
             }
         }
@@ -66,7 +66,7 @@ public function fetchSalesforceData(string|json jiraKeysOrNextRecordUrl) returns
                 json jsonResponse => {
                     return { "success": true, "response": jsonResponse, error: null };
                 }
-                sfdc:SalesforceConnectorError e => return { "sucess": false, "response": null, "error": check <json>e };
+                sfdc:SalesforceConnectorError e => return { "success": false, "response": null, "error": check <json>e };
             }
         }
     }

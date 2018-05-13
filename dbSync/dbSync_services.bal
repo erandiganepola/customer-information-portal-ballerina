@@ -34,8 +34,9 @@ endpoint mysql:Client mysqlEP {
     poolOptions: { maximumPoolSize: config:getAsInt("POOL_SIZE") }
 };
 
-endpoint http:Client httpClientEP{
-    url: config:getAsString("HTTP_ENDPOINT_URL")
+endpoint http:Client httpClientEP {
+    url: config:getAsString("HTTP_ENDPOINT_URL"),
+    timeoutMillis: 300000
 };
 
 
@@ -92,24 +93,45 @@ service<http:Service> dataSyncService bind listener {
         //log:printInfo("Deleting records from Salesforce DB...");
         //deleteJiraKeys(jiraKeysToBeDeleted);
 
-        log:printDebug("Getting data from Salesforce API...");
+        log:printInfo("Fetching data from Salesforce API ...");
         http:Request httpRequest = new;
-        map organizedSfDataMap;
         httpRequest.setJsonPayload(jiraKeysToBeUpserted);
         var sfResponse = httpClientEP->post("/collector/salesforce/", request = httpRequest);
+        // Fetched salesforce data for given jira keys
         match sfResponse {
             http:Response resp => {
-                log:printInfo("Fetching data from Salesforce API...");
-                json jsonPayload = resp.getJsonPayload() but {
-                    error e => log:printError("Error occurred while receiving Json payload. Error: " + e.message)
-                };
-                json sfData = jsonPayload["response"];
-                //io:println("SF data: " + sfData.toString());
-                organizedSfDataMap = organizeSfData(sfData);
-                //io:println(organizedSfDataMap);
+                match resp.getJsonPayload() {
+                    json jsonPayload => {
 
-                log:printInfo("Upserting records into Salesforce DB...");
-                upsertDataIntoSfDb(organizedSfDataMap);
+                        log:printDebug("Received payload from salesforce: " + jsonPayload.toString());
+
+                        // Got json payload. Now check whether request was successful
+                        if (jsonPayload == ()){
+                            log:printError("No data returned from salesforce API");
+                        } else {
+                            json sfData = jsonPayload["response"];
+                            log:printDebug("Salesforce data fetched");
+
+                            if (sfData == ()){
+                                log:printError("Couldn't fecth salesforce data");
+                            } else {
+                                map organizedSfDataMap = organizeSfData(sfData);
+                                //io:println(organizedSfDataMap);
+
+                                log:printInfo("Updating record statuses");
+                                if (upsertRecordStatus(organizedSfDataMap.keys())){
+                                    log:printInfo("Upserting records into Salesforce DB ...");
+                                    upsertDataIntoSfDb(organizedSfDataMap);
+                                } else {
+                                    log:printError("Unable to insert record status properly. Aborting");
+                                }
+                            }
+                        }
+                    }
+                    error e => {
+                        log:printError("Error occurred while receiving Json payload", err = e);
+                    }
+                }
             }
             error e => {
                 log:printError("Error occured when fetching data from Salesforce. Error: " + e.message);
