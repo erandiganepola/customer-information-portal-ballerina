@@ -148,30 +148,11 @@ function test_getDataFromSF() {
         http:Response resp => {
             json dcResponse = check resp.getJsonPayload();
             if (dcResponse["success"].toString() == "true"){
-                test_nextRecordsUrl = dcResponse["response"]["nextRecordsUrl"].toString();
+                io: println(dcResponse["response"]);
             } else {
                 test:assertFail(msg = dcResponse["error"].toString());
             }
         }
-        error e => {
-            test:assertFail(msg = e.message);
-        }
-    }
-}
-
-// Test function
-@test:Config {
-    dependsOn: ["test_getDataFromSF"]
-}
-function test_getPaginatedDataFromSF() {
-
-    log:printInfo("test_service_getPaginatedDataFromSF");
-
-    http:Request httpRequest = new;
-    httpRequest.setJsonPayload(test_nextRecordsUrl);
-    var out = httpClientEP->post("/collector/salesforce/next", request = httpRequest);
-    match out {
-        http:Response resp => {}
         error e => {
             test:assertFail(msg = e.message);
         }
