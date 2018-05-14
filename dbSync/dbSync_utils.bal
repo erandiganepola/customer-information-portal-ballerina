@@ -242,23 +242,7 @@ function syncSfForJiraKeys(string uuid, string[] jiraKeys) {
 function organizeSfData(json[] records) returns map {
     map<json[]> sfDataMap;
     foreach record in records {
-        string[] jiraKeys = [];
-
-        // Skipping null jira keys
-        match <json[]>record["Support_Accounts__r"]["records"] {
-            json[] supportAccounts => {
-                foreach supportAccount in supportAccounts {
-                    if (supportAccount["JIRA_Key__c"] != ()){
-                        jiraKeys[lengthof jiraKeys] = supportAccount["JIRA_Key__c"].toString();
-                    } else {
-                        log:printWarn("Found 'null' JIRA key for support account: " + supportAccount.toString());
-                    }
-                }
-            }
-            error e => {
-                log:printError("Unable to get support accounts for record: " + record.toString(), err = e);
-            }
-        }
+        string jiraKey = record["Support_Accounts__r"]["records"][0]["JIRA_Key__c"].toString();
 
         json opportunity = {
             "Id": record["Id"],
@@ -301,15 +285,14 @@ function organizeSfData(json[] records) returns map {
             }
         }
 
-        foreach jiraKey in jiraKeys{
-            if (!sfDataMap.hasKey(jiraKey)) {
-                log:printDebug("Adding new Jira key: " + jiraKey);
-                sfDataMap[jiraKey] = [opportunity];
-            } else {
-                log:printDebug("Adding data for existing Jira key: " + jiraKey);
-                int index = (lengthof sfDataMap[jiraKey]);
-                sfDataMap[jiraKey][index] = opportunity;
-            }
+        if (!sfDataMap.hasKey(jiraKey)) {
+            log:printDebug("Adding new Jira key: " + jiraKey);
+            sfDataMap[jiraKey] = [opportunity];
+        } else {
+            log:printDebug("Adding data for existing Jira key: " + jiraKey);
+            int index = (lengthof sfDataMap[jiraKey]);
+
+            sfDataMap[jiraKey][index] = opportunity;
         }
     }
     return sfDataMap;
@@ -395,7 +378,6 @@ function buildQueryFromTemplate(string template, string replace, string[] entrie
 // Upsert data into Salesforce database tables
 function upsertDataIntoSfDb(map organizedDataMap) {
     foreach key, value in organizedDataMap{
-        log:printDebug("\n");
         log:printInfo("Upserting transaction starting for jira key : " + key);
         //Start transaction
         transaction with retries = 3, oncommit = onUpsertCommitFunction, onabort = onUpsertAbortFunction {
