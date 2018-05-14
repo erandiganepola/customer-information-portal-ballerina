@@ -50,18 +50,19 @@ endpoint http:Listener listener {
     basePath: "/sync"
 }
 service<http:Service> dataSyncService bind listener {
+
     @http:ResourceConfig {
         methods: ["POST"],
         path: "/salesforce/start"
     }
     startService(endpoint caller, http:Request request) {
-        log:printInfo("Sync service triggered!");
+        log:printInfo("Requesting full sync!");
         http:Response response = new;
-        match updateSyncRequestedStatus() {
-            () => { response.setJsonPayload({ "sucess": true, error: null });}
-            error e => {
-                response.setJsonPayload({ "sucess": false, error: e.message });
-            }
+        string batchId = system:uuid().substring(0, 32);
+        if (updateSyncRequestedStatus(batchId)) {
+            response.setJsonPayload({ "sucess": true, error: null });
+        } else {
+            response.setJsonPayload({ "sucess": false, error: "Unable to update batch status" });
         }
         _ = caller->respond(response);
     }
@@ -84,9 +85,8 @@ service<http:Service> dataSyncService bind listener {
                     log:printInfo("Last batch has been completed successfully. Nothing to do. Aborting");
                 } else if (bs.state == BATCH_STATUS_SYNC){
                     // Do a full sync
-                    // TODO Set batch state to IN_PROGRESS
                     log:printInfo("Starting a full sync");
-                    if (clearRecordStatusTable()){
+                    if (clearRecordStatusTable() && checkAndSetInProgressState(batchId)){
                         log:printDebug("Getting active JIRA keys from JIRA");
                         match getJiraKeysFromJira() {
                             string[] jiraKeys => {
@@ -96,13 +96,15 @@ service<http:Service> dataSyncService bind listener {
                             error e => log:printError("Error occurred while getting JIRA keys. Error: " + e.message);
                         }
                     } else {
-                        log:printWarn("Couldn't clear record status table. Aborting");
+                        log:printWarn("Couldn't clear record status table or update IN_PROGRESS state. Aborting");
                     }
                 } else if (bs.state == BATCH_STATUS_IN_PROGRESS){
                     // Complete records which haven't been completed
                     log:printInfo("Starting completing incompleted records");
                     string[] jiraKeys = getIncompletedRecordJiraKeys();
                     syncSfForJiraKeys(batchId, jiraKeys);
+                } else {
+                    log:printWarn("Unknown batch state: " + bs.state);
                 }
             }
             () => {
