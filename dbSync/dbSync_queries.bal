@@ -15,15 +15,24 @@
 // specific language governing permissions and limitations
 // under the License.
 //
+@final string QUERY_UPDATE_BATCH_STATUS_TO_SYNC_REQUESTED =
+"UPDATE BatchStatus SET state = 'SYNC_REQUESTED' WHERE id='1'";
+
+@final string QUERY_UPDATE_BATCH_STATUS_TO_IN_PROGRESS =
+"UPDATE BatchStatus SET state=?, uuid=?";
 
 @final string QUERY_GET_BATCH_STATUS_WITH_LOCK =
 "SELECT uuid, state, completed_time FROM BatchStatus LIMIT 1 FOR UPDATE";
 
 @final string QUERY_SET_BATCH_STATUS = "UPDATE BatchStatus SET state=? WHERE uuid=?";
+
 @final string QUERY_SET_BATCH_UUID = "UPDATE BatchStatus SET uuid=?";
-@final string QUERY_GET_INCOMPLETE_JIRA_KEYS = "SELECT jira_key FROM RecordStatus WHERE completed_time IS NULL";
+
+@final string QUERY_GET_INCOMPLETE_JIRA_KEYS = "SELECT jira_key FROM RecordStatus WHERE
+completed_time IS NULL";
 
 @final string QUERY_CLEAR_RECORD_STATUS_TABLE = "TRUNCATE TABLE RecordStatus";
+
 @final string QUERY_INCOMPLETE_RECORD_COUNT =
 "SELECT COUNT(*) FROM RecordStatus WHERE jira_key IN (<JIRA_KEY_LIST>) AND completed_time IS NULL";
 

@@ -47,15 +47,30 @@ endpoint http:Listener listener {
 
 @http:ServiceConfig {
     endpoints: [listener],
-    basePath: "/sync/salesforce"
+    basePath: "/sync"
 }
 service<http:Service> dataSyncService bind listener {
+    @http:ResourceConfig {
+        methods: ["POST"],
+        path: "/salesforce/start"
+    }
+    startService(endpoint caller, http:Request request) {
+        log:printInfo("Sync service triggered!");
+        http:Response response = new;
+        match updateSyncRequestedStatus() {
+            () => { response.setJsonPayload({ "sucess": true, error: null });}
+            error e => {
+                response.setJsonPayload({ "sucess": false, error: e.message });
+            }
+        }
+        _ = caller->respond(response);
+    }
 
     @http:ResourceConfig {
         methods: ["POST"],
-        path: "/start"
+        path: "/salesforce"
     }
-    startSyncData(endpoint caller, http:Request request) {
+    syncData(endpoint caller, http:Request request) {
         log:printInfo("Sync service triggered!");
         http:Response response = new;
         _ = caller->respond(response);

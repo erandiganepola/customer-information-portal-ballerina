@@ -20,6 +20,25 @@ import ballerina/log;
 import ballerina/sql;
 import ballerina/io;
 
+function updateSyncRequestedStatus() returns error|() {
+    log:printInfo("Updating BtachStatus state in to 'SYNC_REQUESTED'");
+    var updateResult = mysqlEP->update(QUERY_UPDATE_BATCH_STATUS_TO_SYNC_REQUESTED);
+    match updateResult {
+        int c => {
+            if (c < 0) {
+                log:printError("Unable to update BatctStatus in to 'SYNC_REQUEST' ");
+            } else {
+                log:printInfo("Successful! Updated BatctStatus in to 'SYNC_REQUEST' ");
+            }
+            return ();
+        }
+        error e => {
+            log:printError("Unable to update BatctStatus in to 'SYNC_REQUEST'");
+            return e;
+        }
+    }
+}
+
 function updateUuidAndGetBatchStatus(string uuid) returns BatchStatus|() {
     log:printInfo("Inserting UUID: " + uuid + " and getting batch status");
     BatchStatus|() batchStatus = ();
@@ -70,6 +89,57 @@ function updateUuidAndGetBatchStatus(string uuid) returns BatchStatus|() {
 
     return batchStatus;
 }
+
+
+//function checkAndSetInProgressState(string uuid) returns boolean {
+//    log:printInfo("Inserting UUID: " + uuid + " and setting batch status to `IN_PROGRESS`");
+//    BatchStatus|() batchStatus = ();
+//    transaction with retries = 3, oncommit = onCommit, onabort = onAbort {
+//        var results = mysqlEP->select(QUERY_GET_BATCH_STATUS_WITH_LOCK, BatchStatus);
+//        // get batch status
+//        match results {
+//            table<BatchStatus> entries => {
+//                while (entries.hasNext()){
+//                    match <BatchStatus>entries.getNext()  {
+//                        BatchStatus bs => batchStatus = bs;
+//                        error e => log:printError("Unable to get batch status", err = e);
+//                    }
+//                }
+//            }
+//            error e => {
+//                //log:printError("Unable to get batch status", err = e);
+//                retry;
+//            }
+//        }
+//
+//        match batchStatus {
+//            BatchStatus bs => {
+//                // Set batch uuid
+//                var updateResult = mysqlEP->update(QUERY_SET_BATCH_UUID, uuid);
+//                match updateResult {
+//                    int c => {
+//                        if (c < 0) {
+//                            //log:printError("Unable to update UUID: " + uuid);
+//                            abort;
+//                        } else {
+//                            log:printInfo("Updated batch UUID: " + uuid);
+//                        }
+//                    }
+//                    error e => {
+//                        //log:printError("Unable to set UUID: " + uuid, err = e);
+//                        retry;
+//                    }
+//                }
+//            }
+//            () => {
+//                log:printWarn("No existing batch status found");
+//            }
+//        }
+//    } onretry {
+//        log:printWarn("Retrying transaction to update batch UUID: " + uuid);
+//    }
+//    return batchStatus;
+//}
 
 
 function checkAndSetBatchCompleted(string[] jiraKeys, string uuid) {
@@ -192,7 +262,7 @@ function syncSfForJiraKeys(string uuid, string[] jiraKeys) {
         j++;
         lengthOfJiraKeys--;
 
-        if ((i == PAGINATE_LIMIT - 1) || (lengthof jiraKeys < PAGINATE_LIMIT && i == lengthof jiraKeys - 1)){
+        if ((i == PAGINATE_LIMIT) || (lengthof jiraKeys < PAGINATE_LIMIT && i == lengthof jiraKeys - 1)){
             i = 0;
             http:Request httpRequest = new;
             match <json>paginatedKeys {
