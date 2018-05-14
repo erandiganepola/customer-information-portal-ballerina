@@ -17,6 +17,7 @@
 //
 
 @final string QUERY_TEMPLATE_GET_CUSTOMER_DETAILS_BY_JIRA_KEYS = "
+
     SELECT
         Account.account_id,
         Account.customer_name,
@@ -26,16 +27,26 @@
         Account.technical_owner,
         Account.domain,
         Account.primary_contact,
-        Account.timezone,
+        Account.city,
+        Account.country,
+        Account.geocode_accuracy,
+        Account.latitude,
+        Account.longitude,
+        Account.postal_code,
+        Account.state,
+        Account.street,
 
         Opportunity.opportunity_id,
+        Opportunity.account_id,
 
+        OpportunityProducts.opportunity_id,
         OpportunityProducts.opportunity_product_id,
         OpportunityProducts.name,
         OpportunityProducts.profile,
         OpportunityProducts.count,
         OpportunityProducts.deployment,
 
+        SupportAccount.opportunity_id,
         SupportAccount.support_account_id,
         SupportAccount.jira_key
 
@@ -51,10 +62,11 @@
 
 
 @final string QUERY_TEMPLATE_GET_PROJECT_DETAILS_BY_JIRA_KEYS = "
+
     SELECT
         JiraProject.jira_key,
         JiraProject.project_name,
-        JiraProject.project_category
+        JiraProject.category
 
     FROM
         JiraProject
