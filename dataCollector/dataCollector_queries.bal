@@ -34,3 +34,11 @@
         Opportunity
     WHERE
         Id In (SELECT Opportunity_Name__c FROM Support_Account__c WHERE JIRA_Key__c In <JIRA_KEY_LIST>)";
+
+@final string QUERY_TEMPLATE_GET_ALL_JIRA_KEYS_FROM_SALESFORCE = "
+    SELECT
+        JIRA_Key__c
+    FROM
+        Support_Account__c
+    WHERE
+        JIRA_Key__c != null";
