@@ -71,26 +71,31 @@ service<http:Service> dataCollector bind listener {
             json jiraKeys => {
                 json sfResponse = fetchSalesforceData(jiraKeys);
 
-                if (sfResponse["success"].toString()=="false"){
+                if (sfResponse["success"].toString() == "false"){
                     response.setJsonPayload(sfResponse);
                 }
                 else {
-                    json[] records = check <json[]>sfResponse["response"]["records"];
-                    string nextRecordsUrl = sfResponse["response"]["nextRecordsUrl"].toString();
-                    //if the salesforce response is paginated
-                    while(nextRecordsUrl!="null") {
-                        int i = lengthof records;
-                        io:println(nextRecordsUrl);
-                        sfResponse = fetchSalesforceData(nextRecordsUrl);
-                        json[] nextRecords = check <json[]>sfResponse["response"]["records"];
-                        foreach record in nextRecords{
-                            records[i]=record;
-                            i++;
+
+                    match <json[]>sfResponse["response"]["records"]{
+                        json[] records => {
+                            string nextRecordsUrl = sfResponse["response"]["nextRecordsUrl"].toString();
+                            //if the salesforce response is paginated
+                            while (nextRecordsUrl != "null") {
+                                int i = lengthof records;
+                                io:println(nextRecordsUrl);
+                                sfResponse = fetchSalesforceData(nextRecordsUrl);
+                                json[] nextRecords = check <json[]>sfResponse["response"]["records"];
+                                foreach record in nextRecords{
+                                    records[i] = record;
+                                    i++;
+                                }
+                                nextRecordsUrl = sfResponse["response"]["nextRecordsUrl"].toString();
+                            }
+                            response.setJsonPayload({ "success": true, "response": records, "error": null });
+
                         }
-                        nextRecordsUrl = sfResponse["response"]["nextRecordsUrl"].toString();
-                        i+=1;
+                        error e => response.setJsonPayload({ "success": false, "response": null, "error": e.message });
                     }
-                    response.setJsonPayload({ "success": true, "response": records, "error": null });
                 }
             }
             error e => response.setJsonPayload({ "success": false, "response": null, "error": e.message });
@@ -115,12 +120,12 @@ service<http:Service> dataCollector bind listener {
                 json[] projectKeys = [];
                 int i = 0;
                 foreach (project in summaryList){
-                    if(!project.name.hasPrefix("ZZZ")){
-                        projectKeys[i]=project.key;
-                    i+=1;
+                    if (!project.name.hasPrefix("ZZZ")){
+                        projectKeys[i] = project.key;
+                        i++;
+                    }
                 }
-            }
-            response.setJsonPayload({ "success": true, "response": projectKeys, "error":null });
+                response.setJsonPayload({ "success": true, "response": projectKeys, "error": null });
             }
             jira:JiraConnectorError e => response.setJsonPayload({ "success": false, "response": null, "error": e.
                 message });
@@ -142,12 +147,13 @@ service<http:Service> dataCollector bind listener {
                 json[] projectKeys = [];
                 int i = 0;
                 foreach (project in summaryList){
-                    projectKeys[i]=project.key;
-                    i+=1;
+                    projectKeys[i] = project.key;
+                    i++;
                 }
-                response.setJsonPayload({ "success": true, "response": projectKeys, "error":null });
+                response.setJsonPayload({ "success": true, "response": projectKeys, "error": null });
             }
-            jira:JiraConnectorError e => response.setJsonPayload({ "success": false, "response": null, "error":e.message });
+            jira:JiraConnectorError e => response.setJsonPayload({ "success": false, "response": null, "error": e.
+                message });
         }
         _ = caller->respond(response);
     }
@@ -158,16 +164,17 @@ service<http:Service> dataCollector bind listener {
     }
     getAllJiraProjects(endpoint caller, http:Request request) {
 
-    http:Response response = new;
+        http:Response response = new;
 
-    var connectorResponse = jiraClientEP->getAllProjectSummaries();
-    match connectorResponse {
-        jira:ProjectSummary[] summaryList => {
+        var connectorResponse = jiraClientEP->getAllProjectSummaries();
+        match connectorResponse {
+            jira:ProjectSummary[] summaryList => {
 
-            response.setJsonPayload({ "success": true, "response": check <json>summaryList, "error":null });
+                response.setJsonPayload({ "success": true, "response": check <json>summaryList, "error": null });
+            }
+            jira:JiraConnectorError e => response.setJsonPayload({ "success": false, "response": null, "error": e.
+                message });
         }
-        jira:JiraConnectorError e => response.setJsonPayload({ "success": false, "response": null, "error":e.message });
-    }
-    _ = caller->respond(response);
+        _ = caller->respond(response);
     }
 }
