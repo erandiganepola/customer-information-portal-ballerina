@@ -66,7 +66,7 @@ service<http:Service> dataSyncService bind listener {
             BatchStatus bs => {
                 if (bs.state == BATCH_STATUS_COMPLETED){
                     // Nothing to do
-                    log:printInfo("Last batch has completed successfully. Nothong to do. Aborting");
+                    log:printInfo("Last batch has completed successfully. Nothing to do. Aborting");
                 } else if (bs.state == BATCH_STATUS_SYNC){
                     // Do a full sync
                     // TODO Set batch state to IN_PROGRESS
@@ -75,7 +75,7 @@ service<http:Service> dataSyncService bind listener {
                         log:printDebug("Getting active JIRA keys from JIRA");
                         match getJiraKeysFromJira() {
                             string[] jiraKeys => {
-                                //syncSfForJiraKeys(jiraKeys);
+                                //syncSfForJiraKeys(batchId, jiraKeys);
                                 syncSfForJiraKeys(batchId, jiraKeysToBeUpserted);
                             }
                             error e => log:printError("Error occurred while getting JIRA keys. Error: " + e.message);

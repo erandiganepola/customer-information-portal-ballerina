@@ -178,64 +178,97 @@ function getIncompletedRecordJiraKeys() returns string[] {
 function syncSfForJiraKeys(string uuid, string[] jiraKeys) {
     log:printInfo("Syncing " + (lengthof jiraKeys) + " JIRA keys");
 
-    http:Request httpRequest = new;
-    match <json>jiraKeys {
-        json keys => {
-            httpRequest.setJsonPayload(keys);
-        }
-        error e => {
-            log:printError("Unable to cast jira key array to json[]", err = e);
-            return;
-        }
-    }
+    string[] paginatedKeys = [];
+    json[] paginatedRecords;
+    int lengthOfJiraKeys = lengthof jiraKeys;
+    int paginateLimit = PAGINATE_LIMIT;
+    int i = 0;
+    int j = 0;
+    int k = 0;
 
-    log:printDebug("Fetching data from Salesforce API ...");
-    var sfResponse = httpClientEP->post("/collector/salesforce/", request = httpRequest);
-    match sfResponse {
-        http:Response resp => {
-            match resp.getJsonPayload() {
-                json jsonPayload => {
-                    log:printDebug("Received payload from salesforce");
+    while (lengthOfJiraKeys > 0){
+        paginatedKeys[i] = jiraKeys[j];
+        i++;
+        j++;
+        lengthOfJiraKeys--;
 
-                    // Got json payload. Now check whether request was successful
-                    if (jsonPayload == () || jsonPayload["response"] == ()){
-                        log:printError("No data returned from salesforce API");
-                    } else {
-                        match <json[]>jsonPayload["response"]{
-                            json[] records => {
-                                log:printDebug((lengthof records) + " salesforce records fetched");
+        if ((i == PAGINATE_LIMIT - 1) || (lengthof jiraKeys < PAGINATE_LIMIT && i == lengthof jiraKeys - 1)){
+            i = 0;
+            http:Request httpRequest = new;
+            match <json>paginatedKeys {
+                json keys => {
+                    httpRequest.setJsonPayload(keys);
+                }
+                error e => {
+                    log:printError("Unable to cast jira key array to json[]", err = e);
+                    return;
+                }
+            }
 
-                                if (lengthof records == 0) {
-                                    log:printWarn("No SF record found. Aborting");
-                                } else {
-                                    map organizedSfDataMap = organizeSfData(records);
+            log:printDebug("Fetching data from Salesforce API ...");
+            var sfResponse = httpClientEP->post("/collector/salesforce/", request = httpRequest);
+            match sfResponse {
+                http:Response resp => {
+                    match resp.getJsonPayload() {
+                        json jsonPayload => {
+                            log:printDebug("Received Json payload from salesforce");
 
-                                    log:printInfo("Updating record statuses");
-                                    if (upsertRecordStatus(organizedSfDataMap.keys())){
-                                        log:printInfo("Upserting records into Salesforce DB ...");
-                                        upsertDataIntoSfDb(organizedSfDataMap);
+                            // Got json payload. Now check whether request was successful
+                            if (jsonPayload == () || jsonPayload["response"] == ()){
+                                log:printError("No data returned from salesforce API");
+                            } else {
+                                match <json[]>jsonPayload["response"]{
+                                    json[] records => {
+                                        log:printDebug((lengthof records) + " salesforce records fetched");
 
-                                        // TODO if all jira keys' status are ok, update batch status
-                                        checkAndSetBatchCompleted(jiraKeys, uuid);
-                                    } else {
-                                        log:printError("Unable to insert record status properly. Aborting");
+                                        if (lengthof records == 0) {
+                                            log:printWarn("No Salesforce record found. Aborting");
+                                        } else {
+                                            //when appending records for the first time
+                                            if (lengthof paginatedRecords == 0){
+                                                paginatedRecords = <json[]>records;
+                                            } else {
+                                                //if the salesforce response is paginated
+                                                k = lengthof records;
+                                                foreach record in records{
+                                                    paginatedRecords[k] = record;
+                                                    k++;
+                                                }
+                                            }
+                                        }
+                                    }
+                                    error e => {
+                                        log:printError("Unable to cast Salesforce records", err = e);
                                     }
                                 }
                             }
-                            error e => {
-                                log:printError("Unable to fetch SF records", err = e);
-                            }
+                        }
+                        error e => {
+                            log:printError("Error occurred while receiving Json payload", err = e);
                         }
                     }
                 }
                 error e => {
-                    log:printError("Error occurred while receiving Json payload", err = e);
+                    log:printError("Error occured when fetching data from Salesforce. Error: " + e.message);
                 }
             }
         }
-        error e => {
-            log:printError("Error occured when fetching data from Salesforce. Error: " + e.message);
-        }
+    }
+
+    //Sending full Salesforce data set to be organized
+    io:println("paginated records :");
+    io:print(paginatedRecords);
+    map organizedSfDataMap = organizeSfData(paginatedRecords);
+
+    log:printInfo("Updating record statuses");
+    if (upsertRecordStatus(organizedSfDataMap.keys())){
+        log:printInfo("Upserting records into Salesforce DB ...");
+        upsertDataIntoSfDb(organizedSfDataMap);
+
+        // TODO if all jira keys' status are ok, update batch status
+        checkAndSetBatchCompleted(jiraKeys, uuid);
+    } else {
+        log:printError("Unable to insert record status properly. Aborting");
     }
 }
 
