@@ -26,50 +26,72 @@ import ballerina/mysql;
 
 //mySQL client global endpoint
 endpoint mysql:Client mysqlClientEP {
-    host:config:getAsString("SFDB_HOST"),
-    port:config:getAsInt("SFDB_PORT"),
-    name:config:getAsString("SFDB_NAME"),
-    username:config:getAsString("SFDB_USERNAME"),
-    password:config:getAsString("SFDB_PASSWORD"),
-    poolOptions:{maximumPoolSize:config:getAsInt("SFDB_MAXIMUM_POOL_SIZE")},
-    dbOptions:{"useSSL":false}
+    host: config:getAsString("SFDB_HOST"),
+    port: config:getAsInt("SFDB_PORT"),
+    name: config:getAsString("SFDB_NAME"),
+    username: config:getAsString("SFDB_USERNAME"),
+    password: config:getAsString("SFDB_PASSWORD"),
+    poolOptions: { maximumPoolSize: config:getAsInt("SFDB_MAXIMUM_POOL_SIZE") },
+    dbOptions: { "useSSL": false }
 };
 
 //database connector object
 public type SalesforceDatabaseConnector object {
 
     //Returns the detailed representation of the customers related to a given jira key list
-    public function getAllCustomerDetailsByJiraKeys(string[] jiraKeys) returns Account[]|error;
+    public function getCustomerDetailsByJiraKeys(string[] jiraKeys) returns json[]|error;
 
     //Returns the detailed representation of the project details related for a given jira key list
-    public function getAllProjectDetailsByJiraKeys(string[] jiraKeys) returns ProjectSummary[]|error;
+    public function getProjectDetailsByJiraKeys(string[] jiraKeys) returns json[]|error;
 };
 
-public function SalesforceDatabaseConnector::getAllCustomerDetailsByJiraKeys(string[] jiraKeys) returns Account[]|error {
+public function SalesforceDatabaseConnector::getCustomerDetailsByJiraKeys(string[] jiraKeys) returns json[]|error {
 
-    Account[] accounts = [];
-
-    string builtQuery = buildQueryFromTemplate(QUERY_TEMPLATE_GET_ACCOUNT_DETAILS_BY_JIRA_KEYS, jiraKeys);
-
-    var result = mysqlClientEP->select(builtQuery, ());
-    match result {
-        table tb => io:println(<json>tb);
-        error e => io:println(e);
+    if (lengthof jiraKeys == 0){
+        return { message: "No jira keys recieved" };
     }
-    return accounts;
+    else {
+        Account[] accounts = [];
+
+        string builtQuery = buildQueryFromTemplate(QUERY_TEMPLATE_GET_CUSTOMER_DETAILS_BY_JIRA_KEYS, jiraKeys);
+
+        var response = mysqlClientEP->select(builtQuery, ());
+        match response {
+            table results => {
+                match <json>results{
+                    json jsonResults => {
+                        match <json[]>jsonResults{
+                            json[] resultsArray => return resultsArray;
+                            error e => return e;
+                        }
+                    }
+                    error e => return e;
+                }
+            }
+            error e => return e;
+        }
+    }
 }
 
+public function SalesforceDatabaseConnector::getProjectDetailsByJiraKeys(string[] jiraKeys) returns json[]|error {
 
-public function SalesforceDatabaseConnector::getAllProjectDetailsByJiraKeys(string[] jiraKeys) returns ProjectSummary[]|error {
+    ProjectSummary[] projects = [];
 
-    ProjectSummary[] projects =[];
+    string builtQuery = buildQueryFromTemplate(QUERY_TEMPLATE_GET_PROJECT_DETAILS_BY_JIRA_KEYS, jiraKeys);
 
-    string builtQuery = buildQueryFromTemplate(QUERY_TEMPLATE_GET_CUSTOMER_DETAILS_BY_JIRA_KEYS, jiraKeys);
-
-    var result = mysqlClientEP->select(builtQuery, ());
-    match result {
-        table tb => io:println(<json>tb);
-        error e => io:println(e);
+    var response = mysqlClientEP->select(builtQuery, ());
+    match response {
+        table results => {
+            match <json>results{
+                json jsonResults => {
+                    match <json[]>jsonResults{
+                        json[] resultsArray => return resultsArray;
+                        error e => return e;
+                    }
+                }
+                error e => return e;
+            }
+        }
+        error e => return e;
     }
-    return projects;
 }
