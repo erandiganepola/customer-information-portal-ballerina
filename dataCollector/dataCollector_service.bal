@@ -75,24 +75,34 @@ service<http:Service> dataCollector bind listener {
                     response.setJsonPayload(sfResponse);
                 }
                 else {
-
                     match <json[]>sfResponse["response"]["records"]{
                         json[] records => {
+                            boolean flag=true;
                             string nextRecordsUrl = sfResponse["response"]["nextRecordsUrl"].toString();
                             //if the salesforce response is paginated
                             while (nextRecordsUrl != "null") {
                                 int i = lengthof records;
                                 io:println(nextRecordsUrl);
                                 sfResponse = fetchSalesforceData(nextRecordsUrl);
-                                json[] nextRecords = check <json[]>sfResponse["response"]["records"];
-                                foreach record in nextRecords{
-                                    records[i] = record;
-                                    i++;
+                                match <json[]>sfResponse["response"]["records"]{
+                                    json[] nextRecords => {
+                                        foreach item in nextRecords{
+                                            records[i] = item;
+                                            i++;
+                                        }
+                                        nextRecordsUrl = sfResponse["response"]["nextRecordsUrl"].toString();
+                                    }
+                                    error e => {
+                                        response.setJsonPayload({ "success": false, "response": null, "error": e.message });
+                                        nextRecordsUrl = "";
+                                        flag = false;
+                                    }
                                 }
-                                nextRecordsUrl = sfResponse["response"]["nextRecordsUrl"].toString();
                             }
-                            response.setJsonPayload({ "success": true, "response": records, "error": null });
-
+                            io:println(lengthof records);
+                            if(flag){
+                                response.setJsonPayload({ "success": true, "response": records, "error": null });
+                            }
                         }
                         error e => response.setJsonPayload({ "success": false, "response": null, "error": e.message });
                     }
