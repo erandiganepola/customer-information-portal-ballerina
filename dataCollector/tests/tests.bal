@@ -147,9 +147,7 @@ function test_getDataFromSF() {
     match out {
         http:Response resp => {
             json dcResponse = check resp.getJsonPayload();
-            if (dcResponse["success"].toString() == "true"){
-                io: println(dcResponse["response"]);
-            } else {
+            if (dcResponse["success"].toString() == "false") {
                 test:assertFail(msg = dcResponse["error"].toString());
             }
         }
