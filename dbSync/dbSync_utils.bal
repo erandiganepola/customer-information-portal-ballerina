@@ -91,55 +91,32 @@ function updateUuidAndGetBatchStatus(string uuid) returns BatchStatus|() {
 }
 
 
-//function checkAndSetInProgressState(string uuid) returns boolean {
-//    log:printInfo("Inserting UUID: " + uuid + " and setting batch status to `IN_PROGRESS`");
-//    BatchStatus|() batchStatus = ();
-//    transaction with retries = 3, oncommit = onCommit, onabort = onAbort {
-//        var results = mysqlEP->select(QUERY_GET_BATCH_STATUS_WITH_LOCK, BatchStatus);
-//        // get batch status
-//        match results {
-//            table<BatchStatus> entries => {
-//                while (entries.hasNext()){
-//                    match <BatchStatus>entries.getNext()  {
-//                        BatchStatus bs => batchStatus = bs;
-//                        error e => log:printError("Unable to get batch status", err = e);
-//                    }
-//                }
-//            }
-//            error e => {
-//                //log:printError("Unable to get batch status", err = e);
-//                retry;
-//            }
-//        }
-//
-//        match batchStatus {
-//            BatchStatus bs => {
-//                // Set batch uuid
-//                var updateResult = mysqlEP->update(QUERY_SET_BATCH_UUID, uuid);
-//                match updateResult {
-//                    int c => {
-//                        if (c < 0) {
-//                            //log:printError("Unable to update UUID: " + uuid);
-//                            abort;
-//                        } else {
-//                            log:printInfo("Updated batch UUID: " + uuid);
-//                        }
-//                    }
-//                    error e => {
-//                        //log:printError("Unable to set UUID: " + uuid, err = e);
-//                        retry;
-//                    }
-//                }
-//            }
-//            () => {
-//                log:printWarn("No existing batch status found");
-//            }
-//        }
-//    } onretry {
-//        log:printWarn("Retrying transaction to update batch UUID: " + uuid);
-//    }
-//    return batchStatus;
-//}
+function checkAndSetInProgressState(string uuid) returns boolean {
+    log:printInfo("Inserting UUID: " + uuid + " and setting batch status to `IN_PROGRESS`");
+    BatchStatus|() batchStatus = ();
+    transaction with retries = 3, oncommit = onCommit, onabort = onAbort {
+    // Set batch uuid
+        var updateResult = mysqlEP->update(QUERY_UPDATE_BATCH_STATUS_TO_IN_PROGRESS,
+            BATCH_STATUS_IN_PROGRESS, uuid);
+        match updateResult {
+            int c => {
+                if (c < 0) {
+                    log:printError("Unable to update IN_PROGRESS state with UUID : " + uuid);
+                    abort;
+                } else {
+                    log:printInfo("Updated IN_PROGRESS state with UUID : " + uuid);
+                    return true;
+                }
+            }
+            error e => {
+                log:printError("Unable to set IN_PROGRESS state: " + uuid, err = e);
+                retry;
+            }
+        }
+    } onretry {
+        log:printWarn("Retrying transaction to update IN_PROGRESS state ");
+    }
+}
 
 
 function checkAndSetBatchCompleted(string[] jiraKeys, string uuid) {

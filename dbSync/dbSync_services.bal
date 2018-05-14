@@ -81,7 +81,7 @@ service<http:Service> dataSyncService bind listener {
             BatchStatus bs => {
                 if (bs.state == BATCH_STATUS_COMPLETED){
                     // Nothing to do
-                    log:printInfo("Last batch has completed successfully. Nothing to do. Aborting");
+                    log:printInfo("Last batch has been completed successfully. Nothing to do. Aborting");
                 } else if (bs.state == BATCH_STATUS_SYNC){
                     // Do a full sync
                     // TODO Set batch state to IN_PROGRESS
