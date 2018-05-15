@@ -21,25 +21,25 @@ import ballerina/sql;
 import ballerina/io;
 
 function updateSyncRequestedStatus(string uuid) returns boolean {
-    log:printDebug("Updating BtachStatus state in to: " + BATCH_STATUS_SYNC);
+    log:printDebug("Updating BtachStatus state in to: " + BATCH_STATUS_SYNC_REQUESTED);
     transaction with retries = 3, oncommit = onCommit, onabort = onAbort {
         match getBatchStatusWithLock() {
             BatchStatus bs => {
-                boolean result = setBatchStatus(uuid, BATCH_STATUS_SYNC);
+                boolean result = setBatchStatus(uuid, BATCH_STATUS_SYNC_REQUESTED);
             }
             () => {
-                boolean result = addBatchStatus(uuid, BATCH_STATUS_SYNC);
+                boolean result = addBatchStatus(uuid, BATCH_STATUS_SYNC_REQUESTED);
             }
             error => {
                 retry;
             }
         }
     } onretry {
-        log:printWarn("Retrying transaction to update batch status to: " + BATCH_STATUS_SYNC);
+        log:printWarn("Retrying transaction to update batch status to: " + BATCH_STATUS_SYNC_REQUESTED);
     }
 
     match getBatchStatus() {
-        BatchStatus bs => return bs.uuid == uuid && bs.state == BATCH_STATUS_SYNC;
+        BatchStatus bs => return bs.uuid == uuid && bs.state == BATCH_STATUS_SYNC_REQUESTED;
         ()|error => return false;
     }
 }
@@ -301,7 +301,7 @@ function syncSfForJiraKeys(string uuid, string[] jiraKeys) {
     int j = 0;
     int k = 0;
 
-    // TODO simplify
+    // TODO simplify the logic
     while (lengthOfJiraKeys > 0){
         paginatedKeys[i] = jiraKeys[j];
         i++;
@@ -511,7 +511,7 @@ function upsertRecordStatus(string[] jiraKeys) returns boolean {
         }
     }
 
-    // TODO check whether all those keys were inserted with NULL completed_time
+    // TODO check whether all those keys were inserted with NULL completed_time (check successfull?)
 }
 
 function buildQueryFromTemplate(string template, string replace, string[] entries) returns string {
@@ -654,6 +654,7 @@ function upsertDataIntoSfDb(map organizedDataMap) {
                 }
             }
 
+            //Update record completed time
             log:printDebug("All done for Jira key " + key + ". Updating record status");
             var result = mysqlEP->update(QUERY_UPDATE_RECORD_STATUS, key);
             match result {

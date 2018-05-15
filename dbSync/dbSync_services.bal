@@ -83,7 +83,7 @@ service<http:Service> dataSyncService bind listener {
                 if (bs.state == BATCH_STATUS_COMPLETED){
                     // Nothing to do
                     log:printInfo("Last batch has been completed successfully. Nothing to do. Aborting");
-                } else if (bs.state == BATCH_STATUS_SYNC){
+                } else if (bs.state == BATCH_STATUS_SYNC_REQUESTED){
                     // Do a full sync
                     log:printInfo("Starting a full sync");
                     if (clearRecordStatusTable() && checkAndSetInProgressState(batchId)){
@@ -102,7 +102,8 @@ service<http:Service> dataSyncService bind listener {
                     // Complete records which haven't been completed
                     log:printInfo("Starting completing incompleted records");
                     string[] jiraKeys = getIncompletedRecordJiraKeys();
-                    syncSfForJiraKeys(batchId, jiraKeys);
+                    //syncSfForJiraKeys(batchId, jiraKeys);
+                    syncSfForJiraKeys(batchId, jiraKeysToBeUpserted);
                 } else {
                     log:printWarn("Unknown batch state: " + bs.state);
                 }
