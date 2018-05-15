@@ -23,3 +23,27 @@
 @final string BATCH_STATUS_COMPLETED = "COMPLETED";
 
 @final int PAGINATE_LIMIT = 80;
+
+//==============================================================================================//
+@final int JIRA_KEY_INDEX = 0;
+
+@final string SUPPORT_ACCOUNTS__R = "Support_Accounts__r";
+@final string RECORDS = "records";
+@final string JIRA_KEY__C = "JIRA_Key__c";
+@final string ID = "Id";
+@final string ACCOUNT = "Account";
+@final string ACCOUNT_CLASSIFICATION__C = "Account_Classification__c";
+@final string OWNER = "Owner";
+@final string NAME = "Name";
+@final string RATING = "Rating";
+@final string TECHNICAL_OWNER__C = "Technical_Owner__c";
+@final string INDUSTRY = "Industry";
+@final string PHONE = "Phone";
+@final string BILLING_ADDRESS = "BillingAddress";
+@final string START_DATE__C = "Start_Date__c";
+@final string END_DATE__C = "End_Date__c";
+@final string SUPPORT_ACCOUNTS = "SupportAccounts";
+@final string OPPORTUNITY_LINE_ITEMS = "OpportunityLineItems";
+@final string QUANTITY = "Quantity";
+@final string ENVIRONMENT__C = "Environment__c";
+@final string PRICEBOOK_ENTRY = "PricebookEntry";

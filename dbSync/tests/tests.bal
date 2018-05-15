@@ -35,7 +35,7 @@ function testStartService() {
 @test:Config {
     dependsOn: ["testStartService"]
 }
-@test:Config
+//@test:Config
 function testSyncData() {
     log:printInfo("testSyncData Service");
 
