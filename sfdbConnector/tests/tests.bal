@@ -1,10 +1,18 @@
 import ballerina/test;
 import ballerina/io;
 
+SalesforceDatabaseConnector sfdbConnector;
+
+@test:BeforeSuite
+function beforeSuiteFunc() {
+    sfdbConnector = new();
+}
+
 @test:Config
 function test_getCustomerDetailsByJiraKeys() {
-    SalesforceDatabaseConnector sfdbConnector = new();
-    match sfdbConnector.getCustomerDetailsByJiraKeys(["AAALIFEPROD", "AAAMAPROD"]) {
+
+    var connectorResponse = sfdbConnector.getCustomerDetailsByJiraKeys(["AAALIFEPROD", "AAAMAPROD"]);
+    match connectorResponse {
         error e => test:assertFail(msg = e.message);
         json[] => {}
     }
@@ -12,9 +20,22 @@ function test_getCustomerDetailsByJiraKeys() {
 
 @test:Config
 function test_getProjectDetailsByJiraKeys() {
-    SalesforceDatabaseConnector sfdbConnector = new();
-    match sfdbConnector.getProjectDetailsByJiraKeys(["AAALIFEPROD", "AAAMAPROD"]) {
+
+    var connectorResponse = sfdbConnector.getProjectDetailsByJiraKeys(["AAALIFEPROD", "AAAMAPROD"]);
+    match connectorResponse {
         error e => test:assertFail(msg = e.message);
         json[] => {}
+    }
+}
+
+@test:Config
+function test_searchForKeys() {
+    SalesforceDatabaseConnector sfdbConnector = new();
+    var connectorResponse = sfdbConnector.searchForKeys("AAA");
+    match connectorResponse {
+        error e => test:assertFail(msg = e.message);
+        json[] records => {
+            io:println(records);
+        }
     }
 }
