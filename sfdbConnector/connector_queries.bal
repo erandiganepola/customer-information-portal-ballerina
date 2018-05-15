@@ -74,3 +74,16 @@
     WHERE
         jira_key IN <JIRA_KEY_LIST>";
 
+
+@final string QUERY_TEMPLATE_GET_JIRA_KEYS_BY_PROJECT = "
+
+    SELECT
+        JiraProject.jira_key,
+        JiraProject.project_name
+
+    FROM
+        JiraProject
+
+    WHERE
+        (jira_key LIKE '%<PATTERN>%') OR (project_name LIKE '%<PATTERN>%')";
+
