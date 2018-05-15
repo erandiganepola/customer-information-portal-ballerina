@@ -16,6 +16,9 @@
 // under the License.
 //
 
+import ballerina/log;
+
+//Merges a given set of jira keys with a pre-defined query template returns the query
 function buildQueryFromTemplate(string template, json|string[] jiraKeys) returns string {
 
     string key_tuple = EMPTY_STRING;
@@ -38,4 +41,23 @@ function buildQueryFromTemplate(string template, json|string[] jiraKeys) returns
 
     string resultQuery = template.replace("<JIRA_KEY_LIST>", key_tuple);
     return resultQuery;
+}
+
+//Validates the sql connector response and returns the array of results
+function validateQueryResponse(table|error response) returns json[]|error {
+
+    match response {
+        table results => {
+            match <json>results{
+                json jsonResults => {
+                    match <json[]>jsonResults{
+                        json[] resultsArray => return resultsArray;
+                        error e => return e;
+                    }
+                }
+                error e => return e;
+            }
+        }
+        error e => return e;
+    }
 }
