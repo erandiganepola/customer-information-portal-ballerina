@@ -16,6 +16,9 @@
 // under the License.
 //
 
+
+//TODO verify whether we need data mappings for connector outputs with these records or retun json objects
+
 type Account {
     string id;
     string customerName;
