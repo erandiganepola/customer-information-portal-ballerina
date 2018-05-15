@@ -43,6 +43,9 @@ public type SalesforceDatabaseConnector object {
 
     //Returns the detailed representation of the project details related for a given jira key list
     public function getProjectDetailsByJiraKeys(string[] jiraKeys) returns json[]|error;
+
+    //Returns matched jira keys with customer names for a given substring
+    public function searchForKeys(string subString) returns json[]|error;
 };
 
 public function SalesforceDatabaseConnector::getCustomerDetailsByJiraKeys(string[] jiraKeys) returns json[]|error {
@@ -51,47 +54,34 @@ public function SalesforceDatabaseConnector::getCustomerDetailsByJiraKeys(string
         return { message: "No jira keys recieved" };
     }
     else {
-        Account[] accounts = [];
 
         string builtQuery = buildQueryFromTemplate(QUERY_TEMPLATE_GET_CUSTOMER_DETAILS_BY_JIRA_KEYS, jiraKeys);
 
         var response = mysqlClientEP->select(builtQuery, ());
-        match response {
-            table results => {
-                match <json>results{
-                    json jsonResults => {
-                        match <json[]>jsonResults{
-                            json[] resultsArray => return resultsArray;
-                            error e => return e;
-                        }
-                    }
-                    error e => return e;
-                }
-            }
-            error e => return e;
-        }
+
+        var validatedResponse = validateQueryResponse(response);
+        return validatedResponse;
     }
 }
 
 public function SalesforceDatabaseConnector::getProjectDetailsByJiraKeys(string[] jiraKeys) returns json[]|error {
 
-    ProjectSummary[] projects = [];
-
     string builtQuery = buildQueryFromTemplate(QUERY_TEMPLATE_GET_PROJECT_DETAILS_BY_JIRA_KEYS, jiraKeys);
 
     var response = mysqlClientEP->select(builtQuery, ());
-    match response {
-        table results => {
-            match <json>results{
-                json jsonResults => {
-                    match <json[]>jsonResults{
-                        json[] resultsArray => return resultsArray;
-                        error e => return e;
-                    }
-                }
-                error e => return e;
-            }
-        }
-        error e => return e;
-    }
+
+    var validatedResponse = validateQueryResponse(response);
+    return validatedResponse;
+
+}
+
+public function SalesforceDatabaseConnector::searchForKeys(string subString) returns json[]|error {
+
+    //combines the search string with the the predifined SQL query template
+    string searchQuery = QUERY_TEMPLATE_GET_JIRA_KEYS_BY_PROJECT.replace("<PATTERN>",subString);
+
+    io:println(searchQuery);
+    var response = mysqlClientEP->select(searchQuery, ());
+    var validatedResponse = validateQueryResponse(response);
+    return validatedResponse;
 }
