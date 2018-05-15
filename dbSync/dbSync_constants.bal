@@ -18,7 +18,7 @@
 
 @final string EMPTY_STRING = "";
 
-@final string BATCH_STATUS_SYNC = "SYNC_REQUESTED";
+@final string BATCH_STATUS_SYNC_REQUESTED = "SYNC_REQUESTED";
 @final string BATCH_STATUS_IN_PROGRESS = "IN_PROGRESS";
 @final string BATCH_STATUS_COMPLETED = "COMPLETED";
 

@@ -20,35 +20,41 @@ import ballerina/log;
 import ballerina/sql;
 import ballerina/io;
 
-function updateUuidAndGetBatchStatus(string uuid) returns BatchStatus|() {
-    log:printInfo("Inserting UUID: " + uuid + " and getting batch status");
-    BatchStatus|() batchStatus = ();
+function updateSyncRequestedStatus(string uuid) returns boolean {
+    log:printDebug("Updating BtachStatus state in to: " + BATCH_STATUS_SYNC_REQUESTED);
     transaction with retries = 3, oncommit = onCommit, onabort = onAbort {
-        var results = mysqlEP->select(QUERY_GET_BATCH_STATUS_WITH_LOCK, BatchStatus);
-        // get batch status
-        match results {
-            table<BatchStatus> entries => {
-                while (entries.hasNext()){
-                    match <BatchStatus>entries.getNext()  {
-                        BatchStatus bs => batchStatus = bs;
-                        error e => log:printError("Unable to get batch status", err = e);
-                    }
-                }
+        match getBatchStatusWithLock() {
+            BatchStatus bs => {
+                boolean result = setBatchStatus(uuid, BATCH_STATUS_SYNC_REQUESTED);
             }
-            error e => {
-                //log:printError("Unable to get batch status", err = e);
+            () => {
+                boolean result = addBatchStatus(uuid, BATCH_STATUS_SYNC_REQUESTED);
+            }
+            error => {
                 retry;
             }
         }
+    } onretry {
+        log:printWarn("Retrying transaction to update batch status to: " + BATCH_STATUS_SYNC_REQUESTED);
+    }
 
-        match batchStatus {
+    match getBatchStatus() {
+        BatchStatus bs => return bs.uuid == uuid && bs.state == BATCH_STATUS_SYNC_REQUESTED;
+        ()|error => return false;
+    }
+}
+
+function updateUuidAndGetBatchStatus(string uuid) returns BatchStatus|() {
+    log:printInfo("Inserting UUID: " + uuid + " and getting batch status");
+    transaction with retries = 3, oncommit = onCommit, onabort = onAbort {
+        match getBatchStatusWithLock() {
             BatchStatus bs => {
                 // Set batch uuid
                 var updateResult = mysqlEP->update(QUERY_SET_BATCH_UUID, uuid);
                 match updateResult {
                     int c => {
                         if (c < 0) {
-                            //log:printError("Unable to update UUID: " + uuid);
+                            log:printError("Unable to update UUID: " + uuid);
                             abort;
                         } else {
                             log:printInfo("Updated batch UUID: " + uuid);
@@ -63,82 +69,188 @@ function updateUuidAndGetBatchStatus(string uuid) returns BatchStatus|() {
             () => {
                 log:printWarn("No existing batch status found");
             }
+            error e => {
+                retry;
+            }
         }
     } onretry {
         log:printWarn("Retrying transaction to update batch UUID: " + uuid);
     }
 
-    return batchStatus;
+    match getBatchStatus() {
+        BatchStatus bs => {
+            return bs.uuid == uuid ? bs : ();
+        }
+        error|() => return ();
+    }
+}
+
+
+function getBatchStatusWithLock() returns BatchStatus|()|error {
+    BatchStatus|() batchStatus = ();
+    var results = mysqlEP->select(QUERY_GET_BATCH_STATUS_WITH_LOCK, BatchStatus);
+    // get batch status
+    match results {
+        table<BatchStatus> entries => {
+            while (entries.hasNext()){
+                match <BatchStatus>entries.getNext()  {
+                    BatchStatus bs => batchStatus = bs;
+                    error e => log:printError("Unable to get batch status", err = e);
+                }
+            }
+
+            return batchStatus;
+        }
+        error e => {
+            log:printError("Unable to get batch status", err = e);
+            return e;
+        }
+    }
+}
+
+function getBatchStatus() returns BatchStatus|()|error {
+    BatchStatus|() batchStatus = ();
+    var results = mysqlEP->select(QUERY_GET_BATCH_STATUS, BatchStatus);
+    // get batch status
+    match results {
+        table<BatchStatus> entries => {
+            while (entries.hasNext()){
+                match <BatchStatus>entries.getNext()  {
+                    BatchStatus bs => batchStatus = bs;
+                    error e => log:printError("Unable to get batch status", err = e);
+                }
+            }
+
+            return batchStatus;
+        }
+        error e => {
+            log:printError("Unable to get batch status", err = e);
+            return e;
+        }
+    }
+}
+
+// Should be called within a transaction and having the row lock
+function setBatchStatus(string uuid, string status) returns boolean {
+    var updateResult = mysqlEP->update(QUERY_SET_BATCH_STATUS, uuid, status);
+    match updateResult {
+        int c => {
+            if (c < 0) {
+                log:printError("Unable to update BatctStatus in to: " + status);
+                return false;
+            } else {
+                log:printInfo("Successful! Updated BatctStatus in to: " + status);
+                return true;
+            }
+        }
+        error e => {
+            log:printError("Unable to update BatctStatus in to 'SYNC_REQUEST'");
+            return false;
+        }
+    }
+}
+
+// Should be called within a transaction and having the row lock
+function addBatchStatus(string uuid, string status) returns boolean {
+    var result = mysqlEP->update(QUERY_INSERT_BATCH_STATUS, uuid, status);
+    match result {
+        int c => {
+            if (c < 0) {
+                log:printError("Unable to insert BatctStatus:" + status);
+                return false;
+            } else {
+                log:printInfo("Successful! Inserted BatctStatus: " + status);
+                return true;
+            }
+        }
+        error e => {
+            log:printError("Unable to insert BatctStatus: " + status);
+            return false;
+        }
+    }
+}
+
+function checkAndSetInProgressState(string uuid) returns boolean {
+    log:printInfo("Inserting UUID: " + uuid + " and setting batch status to `IN_PROGRESS`");
+    BatchStatus|() batchStatus = ();
+    transaction with retries = 3, oncommit = onCommit, onabort = onAbort {
+        match getBatchStatusWithLock() {
+            BatchStatus bs => {
+                if (bs.uuid != uuid) {
+                    log:printWarn(string `My UUID {{uuid}} is different from current batch UUID {{bs.uuid}}. Aborting`);
+                    abort;
+                }
+
+                if (setBatchStatus(uuid, BATCH_STATUS_IN_PROGRESS)) {
+                    log:printInfo("Updated batch status to " + BATCH_STATUS_IN_PROGRESS + " uuid: " + uuid);
+                } else {
+                    log:printError("Unable to update batch state to " + BATCH_STATUS_IN_PROGRESS + " uuid: " + uuid);
+                }
+            }
+            () => {
+                log:printWarn("No existing batch status found");
+            }
+            error e => {
+                //log:printError("Unable to get batch status", err = e);
+                retry;
+            }
+        }
+    } onretry {
+        log:printWarn("Retrying transaction to update IN_PROGRESS state for batch: " + uuid);
+    }
+
+    match getBatchStatus() {
+        BatchStatus bs => return bs.uuid == uuid && bs.state == BATCH_STATUS_IN_PROGRESS;
+        ()|error => return false;
+    }
 }
 
 
 function checkAndSetBatchCompleted(string[] jiraKeys, string uuid) {
     log:printInfo("Checking for batch completion: " + uuid);
-    // TODO fix error in this function
     transaction with retries = 3, oncommit = onCommit, onabort = onAbort {
-        BatchStatus|() batchStatus = ();
-        try {
-            var results = mysqlEP->select(QUERY_GET_BATCH_STATUS_WITH_LOCK, BatchStatus);
-            // get batch status
-            match results {
-                table<BatchStatus> entries => {
-                    while (entries.hasNext()){
-                        match <BatchStatus>entries.getNext(){
-                            BatchStatus bs => batchStatus = bs;
-                            error e => retry;
-                        }
-                    }
-                }
-                error e => {
-                    //log:printError("Unable to get batch status", err = e);
-                    retry;
-                }
-            }
-        } catch (error e) {
-            io:println(e);
-        }
-
-        io:println(batchStatus);
-
-        match batchStatus {
+        match getBatchStatusWithLock() {
             BatchStatus bs => {
-                if (bs.uuid != uuid) {
-                    log:printWarn(string `Current uuid {{bs.uuid}} is different from mine {{uuid}}`);
+                if (uuid != bs.uuid) {
+                    log:printWarn(string `My UUID {{uuid}} is different from current batch {{bs.uuid}}. Aborting`);
+                    return;
+                }
+
+                io:println(bs);
+
+                if (lengthof jiraKeys == 0) {
+                    log:printDebug("0 records left for completion. Marking as completed");
+                    if (bs.state != BATCH_STATUS_COMPLETED && setBatchStatus(uuid, BATCH_STATUS_COMPLETED)) {
+                        log:printInfo("Marked batch as : " + BATCH_STATUS_COMPLETED + " uuid: " + uuid);
+                    }
                 } else {
                     string q = buildQueryFromTemplate(QUERY_INCOMPLETE_RECORD_COUNT, "<JIRA_KEY_LIST>", jiraKeys);
-                    var count = mysqlEP->select(q, int);
-                    io:println(count);
+                    var count = mysqlEP->select(q, RecordCount);
                     match count {
                         table tb => {
                             int count = 1;
-                            if (tb.hasNext()){
-                                match <int>tb.getNext() {
-                                    int c => count = c;
-                                    error e => log:printError("Unable to get record counts", err = e);
+                            //match <json>tb {
+                            //    json j => io:println(j);
+                            //    error e => io:println(e);
+                            //}
+
+                            while (tb.hasNext()) {
+                                match <RecordCount>tb.getNext() {
+                                    RecordCount rc => count = rc.c;
+                                    error e => log:printError("Unable to read incomplete record count", err = e);
                                 }
                             }
 
                             if (count == 0) {
                                 log:printDebug("All records have been completed. Updating batch status");
-                                var updateResult = mysqlEP->update(QUERY_SET_BATCH_STATUS,
-                                    BATCH_STATUS_COMPLETED, uuid);
-                                match updateResult {
-                                    int c => {
-                                        io:println(c);
-                                        if (c < 0) {
-                                            //log:printError("Unable to update UUID: " + uuid);
-                                            abort;
-                                        } else {
-                                            log:printInfo("Marked batch as completed: " + uuid);
-                                        }
-                                    }
-                                    error e => {
-                                        //log:printError("Unable to set UUID: " + uuid, err = e);
-                                        retry;
-                                    }
+                                if (setBatchStatus(uuid, BATCH_STATUS_COMPLETED)) {
+                                    log:printInfo("Updated BatchStatus to " + BATCH_STATUS_COMPLETED);
+                                } else {
+                                    log:printError("Unable to update batch state to : " + BATCH_STATUS_COMPLETED);
                                 }
                             } else {
-                                log:printWarn(count + " records hasn't been completed");
+                                log:printWarn(count +
+                                        " records hasn't been completed. Not marking batch as completed");
                             }
                         }
                         error e => log:printError("Unable to get incompleted records", err = e);
@@ -146,11 +258,14 @@ function checkAndSetBatchCompleted(string[] jiraKeys, string uuid) {
                 }
             }
             () => {
-                log:printWarn("No existing batch status found");
+                log:printWarn("No batch status found");
+            }
+            error e => {
+                retry;
             }
         }
     } onretry {
-        log:printWarn("Retrying transaction to check and set batch status: " + uuid);
+        log:printWarn("Retrying transaction to check batch completion: Batch - " + uuid);
     }
 }
 
@@ -186,13 +301,14 @@ function syncSfForJiraKeys(string uuid, string[] jiraKeys) {
     int j = 0;
     int k = 0;
 
+    // TODO simplify the logic
     while (lengthOfJiraKeys > 0){
         paginatedKeys[i] = jiraKeys[j];
         i++;
         j++;
         lengthOfJiraKeys--;
 
-        if ((i == PAGINATE_LIMIT - 1) || (lengthof jiraKeys < PAGINATE_LIMIT && i == lengthof jiraKeys - 1)){
+        if ((i == PAGINATE_LIMIT) || (lengthof jiraKeys < PAGINATE_LIMIT && i == lengthof jiraKeys - 1)){
             i = 0;
             http:Request httpRequest = new;
             match <json>paginatedKeys {
@@ -214,7 +330,7 @@ function syncSfForJiraKeys(string uuid, string[] jiraKeys) {
                             log:printDebug("Received Json payload from salesforce");
 
                             // Got json payload. Now check whether request was successful
-                            if (jsonPayload == () || jsonPayload["response"] == ()){
+                            if (jsonPayload == () || jsonPayload["response"] == ()) {
                                 log:printError("No data returned from salesforce API");
                             } else {
                                 match <json[]>jsonPayload["response"]{
@@ -225,12 +341,12 @@ function syncSfForJiraKeys(string uuid, string[] jiraKeys) {
                                             log:printWarn("No Salesforce record found. Aborting");
                                         } else {
                                             //when appending records for the first time
-                                            if (lengthof paginatedRecords == 0){
+                                            if (lengthof paginatedRecords == 0) {
                                                 paginatedRecords = <json[]>records;
                                             } else {
                                                 //if the salesforce response is paginated
                                                 k = lengthof records;
-                                                foreach record in records{
+                                                foreach record in records {
                                                     paginatedRecords[k] = record;
                                                     k++;
                                                 }
@@ -255,17 +371,13 @@ function syncSfForJiraKeys(string uuid, string[] jiraKeys) {
         }
     }
 
-    //Sending full Salesforce data set to be organized
-    io:println("paginated records :");
-    io:print(paginatedRecords);
+    // Sending full Salesforce data set to be organized
+    log:printDebug("paginated records : " + (lengthof paginatedRecords));
     map organizedSfDataMap = organizeSfData(paginatedRecords);
 
-    log:printInfo("Updating record statuses");
     if (upsertRecordStatus(organizedSfDataMap.keys())){
-        log:printInfo("Upserting records into Salesforce DB ...");
+        log:printInfo(string `Upserting {{lengthof organizedSfDataMap.keys()}} records into Salesforce DB ...`);
         upsertDataIntoSfDb(organizedSfDataMap);
-
-        // TODO if all jira keys' status are ok, update batch status
         checkAndSetBatchCompleted(jiraKeys, uuid);
     } else {
         log:printError("Unable to insert record status properly. Aborting");
@@ -372,7 +484,12 @@ function getJiraKeysFromJira() returns string[]|error {
 }
 
 function upsertRecordStatus(string[] jiraKeys) returns boolean {
-    log:printDebug("Upserting " + lengthof jiraKeys + "");
+    log:printDebug("Upserting " + lengthof jiraKeys + " record statuses");
+    if (lengthof jiraKeys == 0) {
+        log:printWarn("0 records to update status");
+        return true;
+    }
+
     string values = "";
     foreach key in jiraKeys {
         values += string `,('{{key}}', NULL)`;
@@ -394,7 +511,7 @@ function upsertRecordStatus(string[] jiraKeys) returns boolean {
         }
     }
 
-    // TODO check whether all those keys were inserted with NULL completed_time
+    // TODO check whether all those keys were inserted with NULL completed_time (check successfull?)
 }
 
 function buildQueryFromTemplate(string template, string replace, string[] entries) returns string {
@@ -411,6 +528,7 @@ function buildQueryFromTemplate(string template, string replace, string[] entrie
 // Upsert data into Salesforce database tables
 function upsertDataIntoSfDb(map organizedDataMap) {
     foreach key, value in organizedDataMap{
+        log:printDebug("\n");
         log:printInfo("Upserting transaction starting for jira key : " + key);
         //Start transaction
         transaction with retries = 3, oncommit = onUpsertCommitFunction, onabort = onUpsertAbortFunction {
@@ -536,6 +654,7 @@ function upsertDataIntoSfDb(map organizedDataMap) {
                 }
             }
 
+            //Update record completed time
             log:printDebug("All done for Jira key " + key + ". Updating record status");
             var result = mysqlEP->update(QUERY_UPDATE_RECORD_STATUS, key);
             match result {

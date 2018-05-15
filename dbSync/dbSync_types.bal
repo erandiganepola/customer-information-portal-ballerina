@@ -21,3 +21,7 @@ type BatchStatus {
     string state;
     string completed_time;
 };
+
+type RecordCount {
+    int c;
+};
