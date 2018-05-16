@@ -37,36 +37,25 @@ public function buildQueryFromTemplate(string template, json|string[] jiraKeys) 
     }
 
     key_tuple = key_tuple.replaceFirst(",", EMPTY_STRING);
+    key_tuple = "(" + key_tuple + ")";
 
     string resultQuery = template.replace("<JIRA_KEY_LIST>", key_tuple);
     return resultQuery;
 }
 
-public function fetchSalesforceData(string|json jiraKeysOrNextRecordUrl) returns json {
+public function fetchSalesforceData(string|json jiraKeysOrNextRecordUrl) returns json|sfdc:SalesforceConnectorError {
 
     match jiraKeysOrNextRecordUrl {
 
         string nextRecordUrl => {
             var connectorResponse = salesforceClientEP->getNextQueryResult(nextRecordUrl);
-            match connectorResponse {
-                json jsonResponse => {
-                    return { "success": true, "response": jsonResponse, error: null };
-                }
-                sfdc:SalesforceConnectorError e => {
-                    return { "success": false, "response": null, "error": check <json>e };
-                }
-            }
+            return connectorResponse;
         }
 
         json jiraKeys => {
             string SOQuery = buildQueryFromTemplate(QUERY_TEMPLATE_GET_SALESFORCE_DATA_BY_JIRA_KEY, jiraKeys);
             var connectorResponse = salesforceClientEP->getQueryResult(SOQuery);
-            match connectorResponse {
-                json jsonResponse => {
-                    return { "success": true, "response": jsonResponse, error: null };
-                }
-                sfdc:SalesforceConnectorError e => return { "success": false, "response": null, "error": check <json>e };
-            }
+            return connectorResponse;
         }
     }
 }
@@ -80,13 +69,13 @@ public function categorizeJiraKeys(string[] newKeys, string[] currentKeys) retur
 
     foreach (key in newKeys){
         toBeUpserted[i_upsert] = key;
-        i_upsert += 1;
+        i_upsert++;
     }
 
     foreach (key in currentKeys){
         if (!hasJiraKey(newKeys, key)){ //update
             toBeDeleted[i_delete] = key;
-            i_delete += 1;
+            i_delete++;
         }
     }
 
@@ -94,7 +83,7 @@ public function categorizeJiraKeys(string[] newKeys, string[] currentKeys) retur
     return result;
 }
 
-//Returns true whether the given list has a given jira key
+//Returns true if the input list has the given jira key
 function hasJiraKey(string[] list, string key) returns boolean {
     foreach (item in list){
         if (item == key){
@@ -102,4 +91,15 @@ function hasJiraKey(string[] list, string key) returns boolean {
         }
     }
     return false;
+}
+
+//Sets the
+function setErrorPayload(http:Response response, error e) {
+    json payload = { "success": false, "response": null, "error": check <json>e };
+    response.setJsonPayload(payload);
+}
+
+function setPayload(http:Response response, json data) {
+    json payload = { "success": false, "response": data, "error": null };
+    response.setJsonPayload(payload);
 }
