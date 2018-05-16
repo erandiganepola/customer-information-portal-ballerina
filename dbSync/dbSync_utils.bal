@@ -425,7 +425,7 @@ function organizeSfData(json[] records) returns map {
                     "Product": item[PRICEBOOK_ENTRY][NAME]
                 };
 
-                opportunity["OpportunityLineItems"][lengthof opportunity["OpportunityLineItems"]] = lineItem;
+                opportunity[OPPORTUNITY_LINE_ITEMS][lengthof opportunity[OPPORTUNITY_LINE_ITEMS]] = lineItem;
             }
         }
 
@@ -537,22 +537,22 @@ function upsertDataIntoSfDb(map organizedDataMap) {
             foreach opportunity in check <json[]>value {
                 //Inserting to Account table
                 var accountResult = mysqlEP->update(QUERY_TO_INSERT_VALUES_TO_ACCOUNT,
-                    opportunity["Account"]["Id"].toString(),
-                    opportunity["Account"]["Name"].toString(),
-                    opportunity["Account"]["Classification"].toString(),
-                    opportunity["Account"]["Rating"].toString(),
-                    opportunity["Account"]["Owner"].toString(),
-                    opportunity["Account"]["TechnicalOwner"].toString(),
-                    opportunity["Account"]["Industry"].toString(),
-                    opportunity["Account"]["Phone"].toString(),
-                    opportunity["Account"]["BillingAddress"]["city"].toString(),
-                    opportunity["Account"]["BillingAddress"]["country"].toString(),
-                    opportunity["Account"]["BillingAddress"]["geocodeAccuracy"].toString(),
-                    opportunity["Account"]["BillingAddress"]["latitude"].toString(),
-                    opportunity["Account"]["BillingAddress"]["longitude"].toString(),
-                    opportunity["Account"]["BillingAddress"]["postalCode"].toString(),
-                    opportunity["Account"]["BillingAddress"]["state"].toString(),
-                    opportunity["Account"]["BillingAddress"]["street"].toString());
+                    opportunity[ACCOUNT][ID].toString(),
+                    opportunity[ACCOUNT][NAME].toString(),
+                    opportunity[ACCOUNT][CLASSIFICATION].toString(),
+                    opportunity[ACCOUNT][RATING].toString(),
+                    opportunity[ACCOUNT][OWNER].toString(),
+                    opportunity[ACCOUNT][TECHNICAL_OWNER].toString(),
+                    opportunity[ACCOUNT][INDUSTRY].toString(),
+                    opportunity[ACCOUNT][PHONE].toString(),
+                    opportunity[ACCOUNT][BILLING_ADDRESS][CITY].toString(),
+                    opportunity[ACCOUNT][BILLING_ADDRESS][COUNTRY].toString(),
+                    opportunity[ACCOUNT][BILLING_ADDRESS][GEOCODEACCURACY].toString(),
+                    opportunity[ACCOUNT][BILLING_ADDRESS][LATITUDE].toString(),
+                    opportunity[ACCOUNT][BILLING_ADDRESS][LONGITUDE].toString(),
+                    opportunity[ACCOUNT][BILLING_ADDRESS][POSTAL_CODE].toString(),
+                    opportunity[ACCOUNT][BILLING_ADDRESS][STATE].toString(),
+                    opportunity[ACCOUNT][BILLING_ADDRESS][STREET].toString());
 
                 match accountResult {
                     int c => {
@@ -570,8 +570,8 @@ function upsertDataIntoSfDb(map organizedDataMap) {
 
                 //Inserting to Opportunity table
                 var oppResult = mysqlEP->update(QUERY_TO_INSERT_VALUES_TO_OPPORTUNITY,
-                    opportunity["Id"].toString(),
-                    opportunity["Account"]["Id"].toString());
+                    opportunity[ID].toString(),
+                    opportunity[ACCOUNT][ID].toString());
                 match oppResult {
                     int c => {
                         if (c < 0) {
@@ -587,12 +587,12 @@ function upsertDataIntoSfDb(map organizedDataMap) {
                 }
 
                 //Inserting to OpportunityProducts table
-                log:printDebug(string `Inserting {{lengthof opportunity["OpportunityLineItems"]}} OpportunityProducts`);
-                foreach lineItem in opportunity["OpportunityLineItems"] {
+                log:printDebug(string `Inserting {{lengthof opportunity[OPPORTUNITY_LINE_ITEMS]}} OpportunityProducts`);
+                foreach lineItem in opportunity[OPPORTUNITY_LINE_ITEMS] {
                     var lineItemsResult = mysqlEP->update(QUERY_TO_INSERT_VALUES_TO_OPPORTUNITY_PRODUCTS,
-                        lineItem["Id"].toString(), opportunity["Id"].toString(), lineItem["Product"].toString(),
-                        lineItem["Product"].toString(), lineItem["Quantity"].toString(),
-                        lineItem["Environment"].toString());
+                        lineItem[ID].toString(), opportunity[ID].toString(), lineItem[PRODUCT].toString(),
+                        lineItem[PRODUCT].toString(), lineItem[QUANTITY].toString(),
+                        lineItem[ENVIRONMENT].toString());
 
                     match lineItemsResult {
                         int c => {
@@ -608,7 +608,7 @@ function upsertDataIntoSfDb(map organizedDataMap) {
                 }
                 log:printDebug("Inserted opportunity products");
 
-                foreach supportAccount in opportunity["SupportAccounts"] {
+                foreach supportAccount in opportunity[SUPPORT_ACCOUNTS] {
                     //Inserting to SupportAccount table
                     sql:Parameter startDate = {
                         sqlType: sql:TYPE_DATE,
