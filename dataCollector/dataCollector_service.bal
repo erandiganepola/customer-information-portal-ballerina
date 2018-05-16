@@ -49,7 +49,7 @@ endpoint jira:Client jiraClientEP {
 };
 
 endpoint http:Listener listener {
-    port: config:getAsInt("DATA_COLLECTOR_PORT")
+    port: config:getAsInt("DATA_COLLECTOR_HTTP_PORT")
 };
 
 @http:ServiceConfig {
@@ -71,18 +71,17 @@ service<http:Service> dataCollector bind listener {
             json jiraKeys => {
                 json sfResponse = fetchSalesforceData(jiraKeys);
 
-                if (sfResponse["success"].toString() == "false"){
+                if (sfResponse["success"].toString() == FALSE){
                     response.setJsonPayload(sfResponse);
                 }
                 else {
-                    match <json[]>sfResponse["response"]["records"]{
+                    match <json[]>sfResponse["response"]["records"]{ //casting json response to a json array
                         json[] records => {
                             boolean flag=true;
                             string nextRecordsUrl = sfResponse["response"]["nextRecordsUrl"].toString();
-                            //if the salesforce response is paginated
-                            while (nextRecordsUrl != "null") {
+                            while (nextRecordsUrl != NULL) { //if the salesforce response is paginated
                                 int i = lengthof records;
-                                io:println(nextRecordsUrl);
+                                log:printDebug("nextRecodsUrl is recieved: "+ nextRecordsUrl);
                                 sfResponse = fetchSalesforceData(nextRecordsUrl);
                                 match <json[]>sfResponse["response"]["records"]{
                                     json[] nextRecords => {
@@ -99,7 +98,7 @@ service<http:Service> dataCollector bind listener {
                                     }
                                 }
                             }
-                            io:println(lengthof records);
+                            log:printDebug("number of salesforce records recieved: "+ <string>(lengthof records));
                             if(flag){
                                 response.setJsonPayload({ "success": true, "response": records, "error": null });
                             }
@@ -124,7 +123,6 @@ service<http:Service> dataCollector bind listener {
         http:Response response = new;
 
         var connectorResponse = jiraClientEP->getAllProjectSummaries();
-
         match connectorResponse {
             jira:ProjectSummary[] summaryList => {
                 json[] projectKeys = [];
@@ -179,7 +177,6 @@ service<http:Service> dataCollector bind listener {
         var connectorResponse = jiraClientEP->getAllProjectSummaries();
         match connectorResponse {
             jira:ProjectSummary[] summaryList => {
-
                 response.setJsonPayload({ "success": true, "response": check <json>summaryList, "error": null });
             }
             jira:JiraConnectorError e => response.setJsonPayload({ "success": false, "response": null, "error": e.
