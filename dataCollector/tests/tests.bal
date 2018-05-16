@@ -2,11 +2,11 @@ import ballerina/test;
 import ballerina/io;
 import ballerina/http;
 import ballerina/log;
+import balerina/config;
 
 endpoint http:Client httpClientEP{
-    url: "http://localhost:10000"
+    url: "http://localhost:" + config:getAsString("DATA_COLLECTOR_HTTP_PORT")
 };
-
 
 json test_jiraKeyList;
 string test_nextRecordsUrl;
@@ -15,7 +15,6 @@ string test_nextRecordsUrl;
 @test:BeforeSuite
 function beforeSuiteFunc() {
     boolean status = test:startServices("dataCollector");
-    io:println(status);
 }
 
 // Test function to check the
@@ -71,9 +70,8 @@ function test_getDataFromSF() {
     log:printInfo("test_service_getDataFromSF");
 
     http:Request httpRequest = new;
-    json jirakeys = ["AAALIFEPROD","CINECADEVSVC","TRIMBLEINTERNAL","IBMCOGNOSOEMSPRT","IBMFILENETSESSPRT"];
+    json jirakeys = ["AAALIFEPROD", "CINECADEVSVC", "TRIMBLEINTERNAL", "IBMCOGNOSOEMSPRT", "IBMFILENETSESSPRT"];
 
-    io:println(lengthof jirakeys);
     httpRequest.setJsonPayload(jirakeys);
     var out = httpClientEP->post("/collector/salesforce/", request = httpRequest);
     match out {
@@ -95,13 +93,6 @@ function test_categorizeJiraKeys() {
     string[] newKeys = ["KEY1", "KEY2"];
     string[] currentKeys = ["KEY2", "KEY3"];
     map result = categorizeJiraKeys(newKeys, currentKeys);
-}
-
-
-@test:Config
-function test() {
-    var resp = salesforceClientEP -> getSObjectBasicInfo("OpportunityLineItem");
-    io:println(resp);
 }
 
 // After Suite Function is used to stop the services
