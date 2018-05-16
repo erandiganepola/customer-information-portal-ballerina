@@ -17,3 +17,6 @@
 //
 
 @final string EMPTY_STRING = "";
+@final string FALSE = "false";
+@final string TRUE = "true";
+@final string NULL = "null";
