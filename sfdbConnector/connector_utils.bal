@@ -36,8 +36,7 @@ function buildQueryFromTemplate(string template, json|string[] jiraKeys) returns
         }
     }
 
-    key_tuple = key_tuple.replaceFirst(",", "");
-    key_tuple = "(" + key_tuple + ")";
+    key_tuple = key_tuple.replaceFirst(",", EMPTY_STRING);
 
     string resultQuery = template.replace("<JIRA_KEY_LIST>", key_tuple);
     return resultQuery;

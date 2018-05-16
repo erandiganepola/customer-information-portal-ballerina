@@ -68,15 +68,18 @@ service<http:Service> dataCollector bind listener {
 
         var payloadIn = request.getJsonPayload();
         match payloadIn {
+            error e => response.setJsonPayload({ "success": false, "response": null, "error": e.message });
             json jiraKeys => {
                 json sfResponse = fetchSalesforceData(jiraKeys);
-
                 if (sfResponse["success"].toString() == FALSE){
                     response.setJsonPayload(sfResponse);
                 }
                 else {
                     match <json[]>sfResponse["response"]["records"]{ //casting json response to a json array
+
+                        error e => response.setJsonPayload({ "success": false, "response": null, "error": e.message });
                         json[] records => {
+
                             boolean flag=true;
                             string nextRecordsUrl = sfResponse["response"]["nextRecordsUrl"].toString();
                             while (nextRecordsUrl != NULL) { //if the salesforce response is paginated
@@ -93,7 +96,7 @@ service<http:Service> dataCollector bind listener {
                                     }
                                     error e => {
                                         response.setJsonPayload({ "success": false, "response": null, "error": e.message });
-                                        nextRecordsUrl = "";
+                                        nextRecordsUrl = EMPTY_STRING;
                                         flag = false;
                                     }
                                 }
@@ -103,11 +106,9 @@ service<http:Service> dataCollector bind listener {
                                 response.setJsonPayload({ "success": true, "response": records, "error": null });
                             }
                         }
-                        error e => response.setJsonPayload({ "success": false, "response": null, "error": e.message });
                     }
                 }
             }
-            error e => response.setJsonPayload({ "success": false, "response": null, "error": e.message });
         }
         caller->respond(response) but { error e => log:printError("Error when responding", err = e) };
     }
@@ -128,7 +129,7 @@ service<http:Service> dataCollector bind listener {
         }
         catch(error e){
             log:printDebug("no query parameters found with key 'exclude'");
-            excludeTypes = "";
+            excludeTypes = EMPTY_STRING;
         }
         var connectorResponse = jiraClientEP->getAllProjectSummaries();
         match connectorResponse {
