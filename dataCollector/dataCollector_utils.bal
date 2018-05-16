@@ -93,13 +93,13 @@ function hasJiraKey(string[] list, string key) returns boolean {
     return false;
 }
 
-//Sets the
-function setErrorPayload(http:Response response, error e) {
+
+function setErrorResponse(http:Response response, error e) {
     json payload = { "success": false, "response": null, "error": check <json>e };
     response.setJsonPayload(payload);
 }
 
-function setPayload(http:Response response, json data) {
-    json payload = { "success": false, "response": data, "error": null };
+function setSuccessResponse(http:Response response, json|json[] data) {
+    json payload = { "success": true, "response": data, "error": null };
     response.setJsonPayload(payload);
 }
