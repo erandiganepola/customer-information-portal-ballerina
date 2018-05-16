@@ -10,9 +10,7 @@ endpoint http:Client httpClient{
 // Before Suite Function is used to start the services
 @test:BeforeSuite
 function beforeSuiteFunc() {
-    boolean status = test:startServices("dataCollector");
-    boolean status2 = test:startServices("dbSync");
-    io:println(status, status2);
+    boolean status = test:startServices(".");
     log:printInfo("Starting Services...");
 }
 
@@ -57,5 +55,5 @@ function testSyncData() {
 // After Suite Function is used to stop the services
 @test:AfterSuite
 function afterSuiteFunc() {
-    test:stopServices("dbSync,dataCollector");
+    test:stopServices(".");
 }

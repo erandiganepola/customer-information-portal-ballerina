@@ -16,8 +16,6 @@
 // under the License.
 //
 
-@final string EMPTY_STRING = "";
-
 @final string BATCH_STATUS_SYNC_REQUESTED = "SYNC_REQUESTED";
 @final string BATCH_STATUS_IN_PROGRESS = "IN_PROGRESS";
 @final string BATCH_STATUS_COMPLETED = "COMPLETED";
@@ -58,6 +56,13 @@
 @final string STATE = "state";
 @final string STREET = "street";
 @final string PRODUCT = "Product";
-//@final string ENVIRONMENT = "Environment";
+@final string START_DATE = "StartDate";
+@final string END_DATE = "EndDate";
 @final string ENVIRONMENT = "Environment";
-//@final string SUPPORT_ACCOUNTS = "SupportAccounts";
+@final string JIRA_KEY = "JiraKey";
+@final string RESPONSE = "response";
+
+//=============================================================================================//
+@final string EMPTY_STRING = "";
+@final string SINGLE_QUOTATION = "'";
+@final string COMMA = ",";
