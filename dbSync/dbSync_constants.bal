@@ -47,3 +47,17 @@
 @final string QUANTITY = "Quantity";
 @final string ENVIRONMENT__C = "Environment__c";
 @final string PRICEBOOK_ENTRY = "PricebookEntry";
+@final string CLASSIFICATION = "Classification";
+@final string TECHNICAL_OWNER = "TechnicalOwner";
+@final string CITY = "city";
+@final string COUNTRY = "country";
+@final string GEOCODEACCURACY = "geocodeAccuracy";
+@final string LATITUDE = "latitude";
+@final string LONGITUDE = "longitude";
+@final string POSTAL_CODE = "postalCode";
+@final string STATE = "state";
+@final string STREET = "street";
+@final string PRODUCT = "Product";
+//@final string ENVIRONMENT = "Environment";
+@final string ENVIRONMENT = "Environment";
+//@final string SUPPORT_ACCOUNTS = "SupportAccounts";
