@@ -18,6 +18,7 @@
 
 import ballerina/io;
 
+//this util fuction is used to
 public function buildQueryFromTemplate(string template, json|string[] jiraKeys) returns string {
 
     string key_tuple = EMPTY_STRING;
@@ -35,8 +36,7 @@ public function buildQueryFromTemplate(string template, json|string[] jiraKeys) 
         }
     }
 
-    key_tuple = key_tuple.replaceFirst(",", "");
-    key_tuple = "(" + key_tuple + ")";
+    key_tuple = key_tuple.replaceFirst(",", EMPTY_STRING);
 
     string resultQuery = template.replace("<JIRA_KEY_LIST>", key_tuple);
     return resultQuery;
@@ -94,6 +94,7 @@ public function categorizeJiraKeys(string[] newKeys, string[] currentKeys) retur
     return result;
 }
 
+//Returns true whether the given list has a given jira key
 function hasJiraKey(string[] list, string key) returns boolean {
     foreach (item in list){
         if (item == key){
