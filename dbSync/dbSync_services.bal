@@ -58,7 +58,7 @@ service<http:Service> dataSyncService bind listener {
     startService(endpoint caller, http:Request request) {
         log:printInfo("Requesting full sync!");
         http:Response response = new;
-        string batchId = system:uuid();
+            string batchId = system:uuid();
         if (updateSyncRequestedStatus(batchId)) {
             response.setJsonPayload({ "sucess": true, error: null });
         } else {

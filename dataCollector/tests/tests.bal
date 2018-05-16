@@ -97,6 +97,13 @@ function test_categorizeJiraKeys() {
     map result = categorizeJiraKeys(newKeys, currentKeys);
 }
 
+
+@test:Config
+function test() {
+    var resp = salesforceClientEP -> getSObjectBasicInfo("OpportunityLineItem");
+    io:println(resp);
+}
+
 // After Suite Function is used to stop the services
 @test:AfterSuite
 function afterSuiteFunc() {

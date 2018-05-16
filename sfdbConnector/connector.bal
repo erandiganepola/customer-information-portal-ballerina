@@ -41,10 +41,10 @@ public type SalesforceDatabaseConnector object {
     //Returns the detailed representation of the customers related to a given jira key list
     public function getCustomerDetailsByJiraKeys(string[] jiraKeys) returns json[]|error;
 
-    //Returns the detailed representation of the project details related for a given jira key list
+    //Returns the detailed representation of jira project details for a given jira key list
     public function getProjectDetailsByJiraKeys(string[] jiraKeys) returns json[]|error;
 
-    //Returns matched jira keys with customer names for a given substring
+    //Returns matched jira project keys and names  for a given search string
     public function searchForKeys(string subString) returns json[]|error;
 };
 
@@ -78,7 +78,7 @@ public function SalesforceDatabaseConnector::getProjectDetailsByJiraKeys(string[
 public function SalesforceDatabaseConnector::searchForKeys(string subString) returns json[]|error {
 
     //combines the search string with the the predifined SQL query template
-    string searchQuery = QUERY_TEMPLATE_GET_JIRA_KEYS_BY_PROJECT.replace("<PATTERN>",subString);
+    string searchQuery = QUERY_TEMPLATE_GET_JIRA_KEYS_BY_PROJECT.replace("<PATTERN>", subString);
 
     io:println(searchQuery);
     var response = mysqlClientEP->select(searchQuery, ());
