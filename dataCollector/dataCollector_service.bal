@@ -68,13 +68,13 @@ service<http:Service> dataCollector bind listener {
 
         var payloadIn = request.getJsonPayload();
         match payloadIn {
-            error e => setErrorPayload(response, e);
+            error e => setErrorResponse(response, e);
             json jiraKeys => {
                 match fetchSalesforceData(jiraKeys) {
-                    sfdc:SalesforceConnectorError e => setErrorPayload(response, e);
+                    sfdc:SalesforceConnectorError e => setErrorResponse(response, e);
                     json sfResponse => {
                         match <json[]>sfResponse[RECORDS]{
-                            error e => setErrorPayload(response, e);
+                            error e => setErrorResponse(response, e);
                             json[] records => {
                                 boolean flag_paginationError = false;
                                 string nextRecordsUrl = sfResponse[NEXT_RECORDS_URL].toString();
@@ -83,7 +83,7 @@ service<http:Service> dataCollector bind listener {
                                     log:printDebug("nextRecodsUrl is recieved: " + nextRecordsUrl);
                                     match fetchSalesforceData(nextRecordsUrl) {
                                         sfdc:SalesforceConnectorError e => {
-                                            setErrorPayload(response, e);
+                                            setErrorResponse(response, e);
                                             nextRecordsUrl = EMPTY_STRING;
                                             flag_paginationError = true;
                                         }
@@ -97,7 +97,7 @@ service<http:Service> dataCollector bind listener {
                                                     nextRecordsUrl = sfResponse[NEXT_RECORDS_URL].toString();
                                                 }
                                                 error e => {
-                                                    setErrorPayload(response, e);
+                                                    setErrorResponse(response, e);
                                                     nextRecordsUrl = EMPTY_STRING;
                                                     flag_paginationError = true;
                                                 }
@@ -105,9 +105,10 @@ service<http:Service> dataCollector bind listener {
                                         }
                                     }
                                 }
-                                log:printDebug("number of salesforce records recieved: " + <string>(lengthof records));
-                                if (flag_paginationError==false){
-                                    response.setJsonPayload({ "success": true, "response": records, "error": null });
+
+                                if (flag_paginationError == false){
+                                    log:printDebug( <string>(lengthof records) + "records were fetched from salesforce successfully" );
+                                    setSuccessResponse(response,records);
                                 }
                             }
                         }
@@ -130,22 +131,21 @@ service<http:Service> dataCollector bind listener {
 
         http:Response response = new;
 
-        var queryParams = request.getQueryParams();
-        string excludeTypes;
-        try{
-            excludeTypes = queryParams["exclude"];
+        var queryParams = request.getQueryParams();  //extracts query paramters from the resource URI
+        string excludeProjectTypes;
+        try {
+            excludeProjectTypes = queryParams["exclude"];
         }
-        catch(error e){
-            log:printDebug("no query parameters found with key 'exclude'");
-            excludeTypes = EMPTY_STRING;
+        catch (error e){
+            log: printDebug("no query parameters found with key 'exclude'");
+            excludeProjectTypes = EMPTY_STRING;
         }
         var connectorResponse = jiraClientEP->getAllProjectSummaries();
         match connectorResponse {
             jira:ProjectSummary[] summaryList => {
                 json[] projectKeys = [];
                 int i = 0;
-
-                if(excludeTypes=="closed"){
+                if (excludeProjectTypes == "closed"){
                     foreach (project in summaryList){
                         if (!project.name.hasPrefix("ZZZ")){
                             projectKeys[i] = project.key;
@@ -160,12 +160,14 @@ service<http:Service> dataCollector bind listener {
                     }
                     log:printDebug(<string>(lengthof projectKeys) + " keys were fetched from jira successfully");
                 }
-                response.setJsonPayload({ "success": true, "response": projectKeys, "error": null });
+                setSuccessResponse(response,projectKeys);
             }
-            jira:JiraConnectorError e => response.setJsonPayload({ "success": false, "response": null, "error": e.
-                message });
+            jira:JiraConnectorError e => setErrorResponse(response,e);
         }
-        caller->respond(response) but { error e => log:printError("Error when responding", err = e) };
+        io:println(response.getJsonPayload());
+        caller->respond(response) but {
+            error e => log:printError("Error when responding", err = e)
+        };
     }
 
     @http:ResourceConfig {
@@ -179,10 +181,11 @@ service<http:Service> dataCollector bind listener {
         var connectorResponse = jiraClientEP->getAllProjectSummaries();
         match connectorResponse {
             jira:ProjectSummary[] summaryList => {
-                response.setJsonPayload({ "success": true, "response": check <json>summaryList, "error": null });
+                json jsonSummaryList =  check <json>summaryList;
+                io:println(<json[]>jsonSummaryList);
+                setSuccessResponse(response,jsonSummaryList);
             }
-            jira:JiraConnectorError e => response.setJsonPayload({ "success": false, "response": null, "error": e.
-                message });
+            jira:JiraConnectorError e => setErrorResponse(response,e);
         }
         caller->respond(response) but { error e => log:printError("Error when responding", err = e) };
     }
