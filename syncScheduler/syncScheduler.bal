@@ -40,12 +40,12 @@ function main(string... args) {
 }
 
 function beginSync() returns (error?) {
-    log:printInfo("Scheduler1 Running");
+    log:printInfo("full Database Sync triggered");
     return ();
 }
 
 function checkStatus() returns (error?) {
-    log:printInfo("Scheduler2 Running");
+    log:printInfo("sync progress checking triggered");
     return ();
 }
 
