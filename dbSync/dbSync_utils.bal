@@ -85,10 +85,9 @@ function updateUuidAndGetBatchStatus(string uuid) returns BatchStatus|() {
     }
 }
 
-
-function getBatchStatusWithLock() returns BatchStatus|()|error {
+function getBatchStatus() returns BatchStatus|()|error {
     BatchStatus|() batchStatus = ();
-    var results = mysqlEP->select(QUERY_GET_BATCH_STATUS_WITH_LOCK, BatchStatus);
+    var results = mysqlEP->select(QUERY_GET_BATCH_STATUS, BatchStatus);
     // get batch status
     match results {
         table<BatchStatus> entries => {
@@ -108,9 +107,9 @@ function getBatchStatusWithLock() returns BatchStatus|()|error {
     }
 }
 
-function getBatchStatus() returns BatchStatus|()|error {
+function getBatchStatusWithLock() returns BatchStatus|()|error {
     BatchStatus|() batchStatus = ();
-    var results = mysqlEP->select(QUERY_GET_BATCH_STATUS, BatchStatus);
+    var results = mysqlEP->select(QUERY_GET_BATCH_STATUS_WITH_LOCK, BatchStatus);
     // get batch status
     match results {
         table<BatchStatus> entries => {
@@ -386,7 +385,7 @@ function organizeSfData(json[] records) returns map {
     map<json[]> sfDataMap;
     foreach record in records {
         string jiraKey = record[SUPPORT_ACCOUNTS__R][RECORDS][JIRA_KEY_INDEX]
-                                [JIRA_KEY__C].toString();
+        [JIRA_KEY__C].toString();
 
         json opportunity = {
             "Id": record[ID],
@@ -469,7 +468,7 @@ function getJiraKeysFromJira() returns string[]|error {
 
             log:printDebug("Received JIRA keys response: " + jsonResponse.toString());
             if (jsonResponse["success"].toString() == "true"){
-                return <string[]>jsonResponse["response"];
+                return <string[]>jsonResponse[RESPONSE];
             } else {
                 string[] keys = [];
                 return keys;
@@ -494,7 +493,7 @@ function upsertRecordStatus(string[] jiraKeys) returns boolean {
         values += string `,('{{key}}', NULL)`;
     }
 
-    values = values.replaceFirst(",", "");
+    values = values.replaceFirst(COMMA, EMPTY_STRING);
 
     string q = QUERY_BULK_UPSERT_RECORD_STATUS.replace("<ENTRIES>", values);
     log:printDebug("Record status bulk update: " + q);
@@ -514,11 +513,11 @@ function upsertRecordStatus(string[] jiraKeys) returns boolean {
 }
 
 function buildQueryFromTemplate(string template, string replace, string[] entries) returns string {
-    string values = "";
+    string values = EMPTY_STRING;
     foreach entry in entries {
-        values += ",'" + entry + "'";
+        values += COMMA + SINGLE_QUOTATION + entry + SINGLE_QUOTATION;
     }
-    values = values.replaceFirst(",", "");
+    values = values.replaceFirst(COMMA, EMPTY_STRING);
 
     return template.replace(replace, values);
 }
@@ -620,22 +619,22 @@ function upsertDataIntoSfDb(map organizedDataMap) {
                         value: null
                     };
 
-                    if (supportAccount["StartDate"] != ()){
+                    if (supportAccount[START_DATE] != ()){
                         startDate = {
                             sqlType: sql:TYPE_DATE,
-                            value: supportAccount["StartDate"].toString()
+                            value: supportAccount[START_DATE].toString()
                         };
                     }
 
-                    if (supportAccount["EndDate"] != ()){
+                    if (supportAccount[END_DATE] != ()){
                         endDate = {
                             sqlType: sql:TYPE_DATE,
-                            value: supportAccount["EndDate"].toString()
+                            value: supportAccount[END_DATE].toString()
                         };
                     }
                     var supportAccResult = mysqlEP->update(QUERY_TO_INSERT_VALUES_TO_SUPPORT_ACCOUNT,
-                        supportAccount["Id"].toString(), opportunity["Id"].toString(),
-                        supportAccount["JiraKey"].toString(), startDate, endDate);
+                        supportAccount[ID].toString(), opportunity[ID].toString(),
+                        supportAccount[JIRA_KEY].toString(), startDate, endDate);
                     match supportAccResult {
                         int c => {
                             if (c < 0) {
