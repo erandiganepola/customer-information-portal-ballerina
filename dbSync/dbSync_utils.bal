@@ -216,8 +216,6 @@ function checkAndSetBatchCompleted(string[] jiraKeys, string uuid) {
                     return;
                 }
 
-                io:println(bs);
-
                 if (lengthof jiraKeys == 0) {
                     log:printDebug("0 records left for completion. Marking as completed");
                     if (bs.state != BATCH_STATUS_COMPLETED && setBatchStatus(uuid, BATCH_STATUS_COMPLETED)) {
@@ -290,7 +288,7 @@ function getIncompletedRecordJiraKeys() returns string[] {
     return jiraKeys;
 }
 
-function syncSfForJiraKeys(string uuid, string[] jiraKeys) {
+function syncSfDataForJiraKeys(string uuid, string[] jiraKeys) {
     log:printInfo("Syncing " + (lengthof jiraKeys) + " JIRA keys");
 
     string[] paginatedKeys = [];
@@ -345,7 +343,7 @@ function syncSfForJiraKeys(string uuid, string[] jiraKeys) {
                                                 paginatedRecords = <json[]>records;
                                             } else {
                                                 //if the salesforce response is paginated
-                                                k = lengthof records;
+                                                k = lengthof paginatedRecords;
                                                 foreach record in records {
                                                     paginatedRecords[k] = record;
                                                     k++;
@@ -387,43 +385,44 @@ function syncSfForJiraKeys(string uuid, string[] jiraKeys) {
 function organizeSfData(json[] records) returns map {
     map<json[]> sfDataMap;
     foreach record in records {
-        string jiraKey = record["Support_Accounts__r"]["records"][0]["JIRA_Key__c"].toString();
+        string jiraKey = record[SUPPORT_ACCOUNTS__R][RECORDS][JIRA_KEY_INDEX]
+                                [JIRA_KEY__C].toString();
 
         json opportunity = {
-            "Id": record["Id"],
+            "Id": record[ID],
             "Account": {
-                "Id": record["Account"]["Id"],
-                "Name": record["Account"]["Name"],
-                "Classification": record["Account"]["Account_Classification__c"],
-                "Owner": record["Account"]["Owner"]["Name"],
-                "Rating": record["Account"]["Rating"],
-                "TechnicalOwner": record["Account"]["Technical_Owner__c"],
-                "Industry": record["Account"]["Industry"],
-                "Phone": record["Account"]["Phone"],
-                "BillingAddress": record["Account"]["BillingAddress"]
+                "Id": record[ACCOUNT][ID],
+                "Name": record[ACCOUNT][NAME],
+                "Classification": record[ACCOUNT][ACCOUNT_CLASSIFICATION__C],
+                "Owner": record[ACCOUNT][OWNER][NAME],
+                "Rating": record[ACCOUNT][RATING],
+                "TechnicalOwner": record[ACCOUNT][TECHNICAL_OWNER__C],
+                "Industry": record[ACCOUNT][INDUSTRY],
+                "Phone": record[ACCOUNT][PHONE],
+                "BillingAddress": record[ACCOUNT][BILLING_ADDRESS]
             },
             "SupportAccounts": [],
             "OpportunityLineItems": []
         };
 
-        foreach supportAccount in record["Support_Accounts__r"]["records"] {
+        foreach supportAccount in record[SUPPORT_ACCOUNTS__R][RECORDS] {
             json account = {
-                "Id": supportAccount["Id"],
-                "JiraKey": supportAccount["JIRA_Key__c"],
-                "StartDate": supportAccount["Start_Date__c"],
-                "EndDate": supportAccount["End_Date__c"]
+                "Id": supportAccount[ID],
+                "JiraKey": supportAccount[JIRA_KEY__C],
+                "StartDate": supportAccount[START_DATE__C],
+                "EndDate": supportAccount[END_DATE__C]
             };
 
-            opportunity["SupportAccounts"][lengthof opportunity["SupportAccounts"]] = account;
+            opportunity[SUPPORT_ACCOUNTS][lengthof opportunity[SUPPORT_ACCOUNTS]] = account;
         }
 
-        if (record["OpportunityLineItems"]["records"] != ()){
-            foreach item in record["OpportunityLineItems"]["records"] {
+        if (record[OPPORTUNITY_LINE_ITEMS][RECORDS] != ()){
+            foreach item in record[OPPORTUNITY_LINE_ITEMS][RECORDS] {
                 json lineItem = {
-                    "Id": item["Id"],
-                    "Quantity": item["Quantity"],
-                    "Environment": item["Environment__c"],
-                    "Product": item["PricebookEntry"]["Name"]
+                    "Id": item[ID],
+                    "Quantity": item[QUANTITY],
+                    "Environment": item[ENVIRONMENT__C],
+                    "Product": item[PRICEBOOK_ENTRY][NAME]
                 };
 
                 opportunity["OpportunityLineItems"][lengthof opportunity["OpportunityLineItems"]] = lineItem;
@@ -709,9 +708,4 @@ function onCommit(string transactionId) {
 
 function onAbort(string transactionId) {
     log:printDebug("Failed - aborted transaction with transaction ID: " + transactionId);
-}
-
-function handleDeletionError(string message, error e, mysql:Client testDB) {
-    log:printError("Error occured during deletion. Error: " + e.message);
-    io:println(message + e.message);
 }

@@ -36,8 +36,8 @@ endpoint mysql:Client mysqlEP {
 };
 
 endpoint http:Client httpClientEP {
-    url: config:getAsString("HTTP_ENDPOINT_URL"),
-    timeoutMillis: 300000
+    url: config:getAsString("HTTP_ENDPOINT_URL")
+    //,timeoutMillis: 300000
 };
 
 
@@ -90,8 +90,8 @@ service<http:Service> dataSyncService bind listener {
                         log:printDebug("Getting active JIRA keys from JIRA");
                         match getJiraKeysFromJira() {
                             string[] jiraKeys => {
-                                //syncSfForJiraKeys(batchId, jiraKeys);
-                                syncSfForJiraKeys(batchId, jiraKeysToBeUpserted);
+                                syncSfDataForJiraKeys(batchId, jiraKeys);
+                                //syncSfForJiraKeys(batchId, jiraKeysToBeUpserted);
                             }
                             error e => log:printError("Error occurred while getting JIRA keys. Error: " + e.message);
                         }
@@ -102,8 +102,8 @@ service<http:Service> dataSyncService bind listener {
                     // Complete records which haven't been completed
                     log:printInfo("Starting completing incompleted records");
                     string[] jiraKeys = getIncompletedRecordJiraKeys();
-                    //syncSfForJiraKeys(batchId, jiraKeys);
-                    syncSfForJiraKeys(batchId, jiraKeysToBeUpserted);
+                    syncSfDataForJiraKeys(batchId, jiraKeys);
+                    //syncSfForJiraKeys(batchId, jiraKeysToBeUpserted);
                 } else {
                     log:printWarn("Unknown batch state: " + bs.state);
                 }
