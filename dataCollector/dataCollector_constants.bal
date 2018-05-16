@@ -20,3 +20,7 @@
 @final string FALSE = "false";
 @final string TRUE = "true";
 @final string NULL = "null";
+
+
+@final string RECORDS = "records";
+@final string NEXT_RECORDS_URL = "nextRecordsUrl";
