@@ -60,7 +60,7 @@
 @final string END_DATE = "EndDate";
 @final string ENVIRONMENT = "Environment";
 @final string JIRA_KEY = "JiraKey";
-@final string RESPONSE = "response";
+@final string DATA_COLLECTOR_RESPONSE = "response";
 
 //=============================================================================================//
 @final string EMPTY_STRING = "";

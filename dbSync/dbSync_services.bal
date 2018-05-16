@@ -55,10 +55,10 @@ service<http:Service> dataSyncService bind listener {
         methods: ["POST"],
         path: "/salesforce/start"
     }
-    startService(endpoint caller, http:Request request) {
-        log:printInfo("Requesting full sync!");
+    startSalesforceService(endpoint caller, http:Request request) {
+        log:printInfo("Requesting full sync for Salesforce data!");
         http:Response response = new;
-            string batchId = system:uuid();
+        string batchId = system:uuid();
         if (updateSyncRequestedStatus(batchId)) {
             response.setJsonPayload({ "sucess": true, error: null });
         } else {
@@ -71,7 +71,7 @@ service<http:Service> dataSyncService bind listener {
         methods: ["POST"],
         path: "/salesforce"
     }
-    syncData(endpoint caller, http:Request request) {
+    syncSalesforceData(endpoint caller, http:Request request) {
         log:printInfo("Sync service triggered!");
         http:Response response = new;
         _ = caller->respond(response);
@@ -91,7 +91,7 @@ service<http:Service> dataSyncService bind listener {
                         match getJiraKeysFromJira() {
                             string[] jiraKeys => {
                                 syncSfDataForJiraKeys(batchId, jiraKeys);
-                                //syncSfForJiraKeys(batchId, jiraKeysToBeUpserted);
+                                //syncSfDataForJiraKeys(batchId, jiraKeysToBeUpserted);
                             }
                             error e => log:printError("Error occurred while getting JIRA keys. Error: " + e.message);
                         }
@@ -103,7 +103,7 @@ service<http:Service> dataSyncService bind listener {
                     log:printInfo("Starting completing incompleted records");
                     string[] jiraKeys = getIncompletedRecordJiraKeys();
                     syncSfDataForJiraKeys(batchId, jiraKeys);
-                    //syncSfForJiraKeys(batchId, jiraKeysToBeUpserted);
+                    //syncSfDataForJiraKeys(batchId, jiraKeysToBeUpserted);
                 } else {
                     log:printWarn("Unknown batch state: " + bs.state);
                 }
@@ -113,5 +113,31 @@ service<http:Service> dataSyncService bind listener {
                 log:printInfo("No state found in BatchStatus table. Aborting");
             }
         }
+    }
+
+    @http:ResourceConfig {
+        methods: ["POST"],
+        path: "/jira/start"
+    }
+    startJiraService(endpoint caller, http:Request request) {
+        log:printInfo("Requesting full sync for Jira data!");
+        http:Response response = new;
+
+        match getJiraProjectDetailsFromJira() {
+            //boolean res => {
+            //    if(res){
+            //        response.setJsonPayload({ "sucess": true, error: null });
+            //    } else{
+            //        response.setJsonPayload({ "sucess": false,
+            //                error: "Unable to upsert JiraProject!" });
+            //    }
+            string[] => io:println("found");
+
+            error e => {
+                response.setJsonPayload({ "sucess": false,
+                        error: "Unable to upsert JiraProject!" + e.message });
+            }
+        }
+        _ = caller->respond(response);
     }
 }

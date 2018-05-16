@@ -468,7 +468,7 @@ function getJiraKeysFromJira() returns string[]|error {
 
             log:printDebug("Received JIRA keys response: " + jsonResponse.toString());
             if (jsonResponse["success"].toString() == "true"){
-                return <string[]>jsonResponse[RESPONSE];
+                return <string[]>jsonResponse[DATA_COLLECTOR_RESPONSE];
             } else {
                 string[] keys = [];
                 return keys;

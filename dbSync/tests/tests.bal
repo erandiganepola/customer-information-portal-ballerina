@@ -16,14 +16,14 @@ function beforeSuiteFunc() {
 
 // Test function
 @test:Config
-function testStartService() {
-    log:printInfo("testStartSyncData Service");
+function testStartSalesforceService() {
+    log:printInfo("testStartSalesforceService");
 
     http:Request httpRequest = new;
     var out = httpClient->post("/sync/salesforce/start", request = httpRequest);
     match out {
         http:Response resp => {
-            log:printInfo("Response received from 'startService' successfully!");
+            log:printInfo("Response received from 'startSalesforceService' successfully!");
         }
         error e => {
             log:printError("Error occured! " + e.message);
@@ -33,17 +33,17 @@ function testStartService() {
 }
 
 @test:Config {
-    dependsOn: ["testStartService"]
+    dependsOn: ["testStartSalesforceService"]
 }
 //@test:Config
-function testSyncData() {
-    log:printInfo("testSyncData Service");
+function testSyncSalesforceData() {
+    log:printInfo("testSyncSalesforceData");
 
     http:Request httpRequest = new;
     var out = httpClient->post("/sync/salesforce", request = httpRequest);
     match out {
         http:Response resp => {
-            log:printInfo("Response received from 'syncData'");
+            log:printInfo("Response received from 'syncSalesforceData' successfully!");
         }
         error e => {
             log:printError("Error occured! " + e.message);
@@ -51,6 +51,23 @@ function testSyncData() {
         }
     }
 }
+
+//@test:Config
+//function testStartJiraService() {
+//    log:printInfo("testStartJiraService");
+//
+//    http:Request httpRequest = new;
+//    var out = httpClient->post("/sync/jira/start", request = httpRequest);
+//    match out {
+//        http:Response resp => {
+//            log:printInfo("Response received from 'startJiraService' successfully!");
+//        }
+//        error e => {
+//            log:printError("Error occured! " + e.message);
+//            test:assertFail(msg = e.message);
+//        }
+//    }
+//}
 
 // After Suite Function is used to stop the services
 @test:AfterSuite
