@@ -26,13 +26,13 @@ import sfdc37;
 import dataCollector as dc;
 
 endpoint mysql:Client mysqlEP {
-    host: config:getAsString("HOST"),
-    port: config:getAsInt("PORT"),
-    name: config:getAsString("NAME"),
-    username: config:getAsString("USERNAME"),
-    password: config:getAsString("PASSWORD"),
+    host: config:getAsString("SFDB_HOST"),
+    port: config:getAsInt("SFDB_PORT"),
+    name: config:getAsString("SFDB_NAME"),
+    username: config:getAsString("SFDB_USERNAME"),
+    password: config:getAsString("SFDB_PASSWORD"),
     dbOptions: { "useSSL": false },
-    poolOptions: { maximumPoolSize: config:getAsInt("POOL_SIZE") }
+    poolOptions: { maximumPoolSize: config:getAsInt("SFDB_POOL_SIZE") }
 };
 
 endpoint http:Client httpClientEP {
