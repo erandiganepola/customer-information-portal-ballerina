@@ -303,6 +303,7 @@ function syncSfDataForJiraKeys(string uuid, string[] jiraKeys) {
         paginatedKeys[i] = jiraKeys[j];
         i++;
         j++;
+        io:println(j);
         lengthOfJiraKeys--;
 
         if ((i == PAGINATE_LIMIT) || (lengthof jiraKeys < PAGINATE_LIMIT && i == lengthof jiraKeys - 1)){
@@ -332,7 +333,7 @@ function syncSfDataForJiraKeys(string uuid, string[] jiraKeys) {
                             } else {
                                 match <json[]>jsonPayload["response"]{
                                     json[] records => {
-                                        log:printDebug((lengthof records) + " salesforce records fetched");
+                                        log:printInfo((lengthof records) + " salesforce records fetched");
 
                                         if (lengthof records == 0) {
                                             log:printWarn("No Salesforce record found. Aborting");
@@ -386,6 +387,7 @@ function organizeSfData(json[] records) returns map {
     foreach record in records {
         string jiraKey = record[SUPPORT_ACCOUNTS__R][RECORDS][JIRA_KEY_INDEX]
         [JIRA_KEY__C].toString();
+        io:println(jiraKey);
 
         json opportunity = {
             "Id": record[ID],
