@@ -21,6 +21,11 @@
 @final string TRUE = "true";
 @final string NULL = "null";
 
+@final string DATA_COLLECTOR_SERVICE_BASE_PATH = "/collector";
+@final string DATA_COLLECTOR_SALESFORCE_RESOURCE = "/salesforce";
+@final string DATA_COLLECTOR_JIRA_KEYS_RESOURCE = "/jira/keys";
+@final string DATA_COLLECTOR_JIRA_PROJECTS_RESOURCE = "/jira/projects";
+
 
 @final string RECORDS = "records";
 @final string NEXT_RECORDS_URL = "nextRecordsUrl";

@@ -56,13 +56,13 @@ endpoint http:Listener listener {
 
 @http:ServiceConfig {
     endpoints: [listener],
-    basePath: "/collector"
+    basePath: DATA_COLLECTOR_SERVICE_BASE_PATH
 }
 service<http:Service> dataCollector bind listener {
 
     @http:ResourceConfig {
         methods: ["POST"],
-        path: "/salesforce"
+        path: DATA_COLLECTOR_SALESFORCE_RESOURCE
     }
     getDataFromSF(endpoint caller, http:Request request) {
 
@@ -127,7 +127,7 @@ service<http:Service> dataCollector bind listener {
 
     @http:ResourceConfig {
         methods: ["GET"],
-        path: "/jira/keys"
+        path: DATA_COLLECTOR_JIRA_KEYS_RESOURCE
     }
     getAllJiraKeys(endpoint caller, http:Request request) {
 
@@ -176,7 +176,7 @@ service<http:Service> dataCollector bind listener {
 
     @http:ResourceConfig {
         methods: ["GET"],
-        path: "/jira/projects"
+        path: DATA_COLLECTOR_JIRA_PROJECTS_RESOURCE
     }
     getAllJiraProjects(endpoint caller, http:Request request) {
 
