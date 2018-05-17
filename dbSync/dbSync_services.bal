@@ -120,22 +120,22 @@ service<http:Service> dataSyncService bind listener {
         path: "/jira/start"
     }
     startJiraService(endpoint caller, http:Request request) {
-        log:printInfo("Requesting full sync for Jira data!");
+        log:printInfo("Requesting full sync for Jira Projects data!");
         http:Response response = new;
 
         match getJiraProjectDetailsFromJira() {
-            //boolean res => {
-            //    if(res){
-            //        response.setJsonPayload({ "sucess": true, error: null });
-            //    } else{
-            //        response.setJsonPayload({ "sucess": false,
-            //                error: "Unable to upsert JiraProject!" });
-            //    }
-            string[] => io:println("found");
-
+            json[] jsonProjects => {
+                if (upsertToJiraProject(jsonProjects)){
+                    response.setJsonPayload({ "sucess": true,
+                            error: null });
+                } else {
+                    response.setJsonPayload({ "sucess": false,
+                            error: "Unable to upsert records!" });
+                }
+            }
             error e => {
                 response.setJsonPayload({ "sucess": false,
-                        error: "Unable to upsert JiraProject!" + e.message });
+                        error: "Unable to get JiraProject details!" + e.message });
             }
         }
         _ = caller->respond(response);
