@@ -16,8 +16,7 @@
 // under the License.
 //
 
-
-//TODO verify whether we need data mappings for connector outputs with these records or retun json objects
+//TODO verify whether we need data mappings for connector outputs with these records or return as json objects
 
 type Account {
     string id;

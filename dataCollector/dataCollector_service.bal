@@ -137,7 +137,7 @@ service<http:Service> dataCollector bind listener {
             excludeProjectTypes = queryParams["exclude"];
         }
         catch (error e){
-            log: printDebug("no query parameters found with key 'exclude'");
+            log: printDebug("no query parameters found with key 'exclude'.Fetching all jira projects..");
             excludeProjectTypes = EMPTY_STRING;
         }
         var connectorResponse = jiraClientEP->getAllProjectSummaries();
@@ -164,7 +164,6 @@ service<http:Service> dataCollector bind listener {
             }
             jira:JiraConnectorError e => setErrorResponse(response,e);
         }
-        io:println(response.getJsonPayload());
         caller->respond(response) but {
             error e => log:printError("Error when responding", err = e)
         };
@@ -182,7 +181,8 @@ service<http:Service> dataCollector bind listener {
         match connectorResponse {
             jira:ProjectSummary[] summaryList => {
                 json jsonSummaryList =  check <json>summaryList;
-                io:println(<json[]>jsonSummaryList);
+                json[] list = check <json[]>jsonSummaryList;
+                io:println(list);
                 setSuccessResponse(response,jsonSummaryList);
             }
             jira:JiraConnectorError e => setErrorResponse(response,e);
