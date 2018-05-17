@@ -22,13 +22,12 @@ import ballerina/runtime;
 import ballerina/http;
 import ballerina/config;
 
-endpoint http:Client httpClient{
+endpoint http:Client dbSyncHttpClientEP{
     url: config:getAsString("DB_SYNC_SERVICE_URI")
 };
 
 task:Appointment? scheduler1;
 task:Appointment? scheduler2;
-
 
 function main(string... args) {
 
@@ -48,13 +47,15 @@ function main(string... args) {
 }
 
 function beginSync() returns (error?) {
-    log:printInfo("full Database Sync triggered");
+    log:printDebug("scheduler 1 triggered full Database Sync");
 
+    http:Request request=new
+    var response = dbSyncHttpClientEP->post()
     return ();
 }
 
 function checkStatus() returns (error?) {
-    log:printInfo("sync progress checking triggered");
+    log:printDebug("schedular 2 triggered sync progress checking");
     return ();
 }
 
