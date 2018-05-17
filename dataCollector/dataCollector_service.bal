@@ -107,8 +107,9 @@ service<http:Service> dataCollector bind listener {
                                 }
 
                                 if (flag_paginationError == false){
-                                    log:printDebug( <string>(lengthof records) + "records were fetched from salesforce successfully" );
-                                    setSuccessResponse(response,records);
+                                    log:printDebug(<string>(lengthof records) +
+                                            "records were fetched from salesforce successfully");
+                                    setSuccessResponse(response, records);
                                 }
                             }
                         }
@@ -131,13 +132,15 @@ service<http:Service> dataCollector bind listener {
 
         http:Response response = new;
 
-        var queryParams = request.getQueryParams();  //extracts query paramters from the resource URI
+        var queryParams = request.getQueryParams();
+        //extracts query paramters from the resource URI
         string excludeProjectTypes;
         try {
             excludeProjectTypes = queryParams["exclude"];
         }
         catch (error e){
-            log: printDebug("no query parameters found with key 'exclude'.Fetching all jira projects..");
+            log:
+            printDebug("no query parameters found with key 'exclude'.Fetching all jira projects..");
             excludeProjectTypes = EMPTY_STRING;
         }
         var connectorResponse = jiraClientEP->getAllProjectSummaries();
@@ -160,9 +163,9 @@ service<http:Service> dataCollector bind listener {
                     }
                     log:printDebug(<string>(lengthof projectKeys) + " keys were fetched from jira successfully");
                 }
-                setSuccessResponse(response,projectKeys);
+                setSuccessResponse(response, projectKeys);
             }
-            jira:JiraConnectorError e => setErrorResponse(response,e);
+            jira:JiraConnectorError e => setErrorResponse(response, e);
         }
         caller->respond(response) but {
             error e => log:printError("Error when responding", err = e)
@@ -180,13 +183,13 @@ service<http:Service> dataCollector bind listener {
         var connectorResponse = jiraClientEP->getAllProjectSummaries();
         match connectorResponse {
             jira:ProjectSummary[] summaryList => {
-                json jsonSummaryList =  check <json>summaryList;
-                json[] list = check <json[]>jsonSummaryList;
-                io:println(list);
-                setSuccessResponse(response,jsonSummaryList);
+                json[] jsonSummaryList = projectSummaryToJson(summaryList);
+                setSuccessResponse(response, jsonSummaryList);
             }
-            jira:JiraConnectorError e => setErrorResponse(response,e);
+            jira:JiraConnectorError e => setErrorResponse(response, e);
         }
-        caller->respond(response) but { error e => log:printError("Error when responding", err = e) };
+        caller->respond(response) but {
+            error e => log:printError("Error when responding", err = e)
+        };
     }
 }
