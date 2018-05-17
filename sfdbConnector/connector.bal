@@ -80,7 +80,6 @@ public function SalesforceDatabaseConnector::searchForKeys(string subString) ret
     //combines the search string with the the predifined SQL query template
     string searchQuery = QUERY_TEMPLATE_GET_JIRA_KEYS_BY_PROJECT.replace("<PATTERN>", subString);
 
-    io:println(searchQuery);
     var response = mysqlClientEP->select(searchQuery, ());
     var validatedResponse = validateQueryResponse(response);
     return validatedResponse;

@@ -23,6 +23,7 @@ import jira7 as jira;
 import ballerina/log;
 import ballerina/config;
 
+//client endpoint of salesforce connector
 endpoint sfdc:Client salesforceClientEP {
     clientConfig: {
         url: config:getAsString("SALESFORCE_ENDPOINT"),
@@ -37,6 +38,7 @@ endpoint sfdc:Client salesforceClientEP {
     }
 };
 
+//client endpoint of jira connector
 endpoint jira:Client jiraClientEP {
     clientConfig: {
         url: config:getAsString("JIRA_ENDPOINT"),
@@ -66,7 +68,7 @@ service<http:Service> dataCollector bind listener {
 
         http:Response response = new;
 
-        var payloadIn = request.getJsonPayload();
+        var payloadIn = request.getJsonPayload(); //retrieve jira key list from the json payload of the request
         match payloadIn {
             error e => setErrorResponse(response, e);
             json jiraKeys => {
@@ -105,10 +107,10 @@ service<http:Service> dataCollector bind listener {
                                         }
                                     }
                                 }
-
                                 if (flag_paginationError == false){
-                                    log:printDebug( <string>(lengthof records) + "records were fetched from salesforce successfully" );
-                                    setSuccessResponse(response,records);
+                                    log:printDebug(<string>(lengthof records) +
+                                            "records were fetched from salesforce successfully");
+                                    setSuccessResponse(response, records);
                                 }
                             }
                         }
@@ -131,13 +133,15 @@ service<http:Service> dataCollector bind listener {
 
         http:Response response = new;
 
-        var queryParams = request.getQueryParams();  //extracts query paramters from the resource URI
+        //extracts query paramters from the resource URI
+        var queryParams = request.getQueryParams();
         string excludeProjectTypes;
         try {
             excludeProjectTypes = queryParams["exclude"];
         }
         catch (error e){
-            log: printDebug("no query parameters found with key 'exclude'.Fetching all jira projects..");
+            log:
+            printDebug("no query parameters found with key 'exclude'.Fetching all jira projects..");
             excludeProjectTypes = EMPTY_STRING;
         }
         var connectorResponse = jiraClientEP->getAllProjectSummaries();
@@ -160,10 +164,11 @@ service<http:Service> dataCollector bind listener {
                     }
                     log:printDebug(<string>(lengthof projectKeys) + " keys were fetched from jira successfully");
                 }
-                setSuccessResponse(response,projectKeys);
+                setSuccessResponse(response, projectKeys);
             }
-            jira:JiraConnectorError e => setErrorResponse(response,e);
+            jira:JiraConnectorError e => setErrorResponse(response, e);
         }
+
         caller->respond(response) but {
             error e => log:printError("Error when responding", err = e)
         };
@@ -176,17 +181,17 @@ service<http:Service> dataCollector bind listener {
     getAllJiraProjects(endpoint caller, http:Request request) {
 
         http:Response response = new;
-
         var connectorResponse = jiraClientEP->getAllProjectSummaries();
         match connectorResponse {
             jira:ProjectSummary[] summaryList => {
-                json jsonSummaryList =  check <json>summaryList;
-                json[] list = check <json[]>jsonSummaryList;
-                io:println(list);
-                setSuccessResponse(response,jsonSummaryList);
+                json[] jsonSummaryList = projectSummaryToJson(summaryList);
+                setSuccessResponse(response, jsonSummaryList);
             }
-            jira:JiraConnectorError e => setErrorResponse(response,e);
+            jira:JiraConnectorError e => setErrorResponse(response, e);
         }
-        caller->respond(response) but { error e => log:printError("Error when responding", err = e) };
+
+        caller->respond(response) but {
+            error e => log:printError("Error when responding", err = e)
+        };
     }
 }

@@ -19,9 +19,16 @@
 import ballerina/task;
 import ballerina/log;
 import ballerina/runtime;
+import ballerina/http;
+import ballerina/config;
+
+endpoint http:Client httpClient{
+    url: config:getAsString("DB_SYNC_SERVICE_URI")
+};
 
 task:Appointment? scheduler1;
 task:Appointment? scheduler2;
+
 
 function main(string... args) {
 
@@ -31,7 +38,8 @@ function main(string... args) {
     scheduler1 = new task:Appointment(beginSync, dbSyncFailError, "0 0 * * * ?");
     scheduler1.schedule();
 
-    //this scheduler runs every 15 minutes to check the sync process and resume if the process is crashed or stopped without
+    //this scheduler runs every 15 minutes to check the sync process and resume if the process is crashed or stopped
+    //without being completed
     scheduler2 = new task:Appointment(checkStatus, dbSyncFailError, "0 0/15 * * * ?");
     scheduler2.schedule();
 
@@ -41,6 +49,7 @@ function main(string... args) {
 
 function beginSync() returns (error?) {
     log:printInfo("full Database Sync triggered");
+
     return ();
 }
 
