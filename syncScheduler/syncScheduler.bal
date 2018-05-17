@@ -20,10 +20,10 @@ import ballerina/task;
 import ballerina/log;
 import ballerina/runtime;
 import ballerina/http;
-
+import ballerina/config;
 
 endpoint http:Client httpClient{
-    url: "http://localhost:9000"
+    url: config:getAsString("DB_SYNC_SERVICE_URI")
 };
 
 task:Appointment? scheduler1;

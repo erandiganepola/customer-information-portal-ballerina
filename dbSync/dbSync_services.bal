@@ -42,7 +42,7 @@ endpoint http:Client httpClientEP {
 
 
 endpoint http:Listener listener {
-    port: config:getAsInt("DATA_SYNC_SERVICE_HTTP_PORT")
+    port: config:getAsInt("DB_SYNC_SERVICE_HTTP_PORT")
 };
 
 @http:ServiceConfig {
