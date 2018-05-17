@@ -20,14 +20,36 @@ import ballerina/log;
 import ballerina/io;
 
 //TODO : finish after getAllJiraProjects() is finalized
-function upsertToJiraProject() returns boolean|error {
-    string[] projects = [];
+function upsertToJiraProject(json[] projects) returns boolean|error {
+    log:printDebug(string `Preparing Upsert query for {{lengthof projects}} projects... `);
+    string queryValues;
     foreach project in projects{
-        return true;
+        queryValues = queryValues + "," + "(" + "'" + project["key"].toString() + "'" + ","
+            + "'"  + project["name"].toString() + "'" + ","
+            + "'"  + project["category"].toString() + "'"  + ")";
+    }
+
+    queryValues = queryValues.replaceFirst(COMMA, EMPTY_STRING);
+    string q = QUERY_BULK_UPSERT_JIRA_PROJECT.replace("<ENTRIES>", queryValues);
+    log:printInfo("Record status bulk update: " + q);
+    var results = mysqlEP->update(q);
+    match results {
+        int c => {
+            log:printInfo(string `Inserted {{lengthof projects}} Jira Projects. Return value {{c}}`);
+            if (c >= 0){
+                return true;
+            } else {
+                return false;
+            }
+        }
+        error e => {
+            log:printError("Unable to insert record status", err = e);
+            return e;
+        }
     }
 }
 
-function getJiraProjectDetailsFromJira() returns string[]|error {
+function getJiraProjectDetailsFromJira() returns json[]|error {
     //Get JIRA Project details from JIRA API
     http:Request httpRequest = new;
     var jiraResponse = httpClientEP->get("/collector/jira/projects", request = httpRequest);
@@ -39,14 +61,12 @@ function getJiraProjectDetailsFromJira() returns string[]|error {
 
             log:printDebug("Received JIRA Project details response: " + jsonResponse.toString());
             if (jsonResponse["success"].toString() == "true") {
-                io:println("Json response start");
                 io:println(<json[]>jsonResponse[DATA_COLLECTOR_RESPONSE]);
-                io:println("Json response end");
-                return <string[]>jsonResponse[DATA_COLLECTOR_RESPONSE];
+                return <json[]>jsonResponse[DATA_COLLECTOR_RESPONSE];
             } else {
-                string[] projectDetails = [];
-                log:printDebug("Found no details for received response of Jira Project details!");
-                return projectDetails;
+                log:printError("Found no records! Received error from Jira Service. Error: "
+                        + jsonResponse["error"].toString());
+                return <error>jsonResponse["error"];
             }
         }
         error e => {
