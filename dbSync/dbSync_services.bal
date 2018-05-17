@@ -36,8 +36,8 @@ endpoint mysql:Client mysqlEP {
 };
 
 endpoint http:Client httpClientEP {
-    url: config:getAsString("HTTP_ENDPOINT_URL")
-    ,timeoutMillis: 300000
+    url: config:getAsString("DATA_COLLECTOR_URI"),
+    timeoutMillis: 300000
 };
 
 
