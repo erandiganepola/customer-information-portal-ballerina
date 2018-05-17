@@ -31,11 +31,9 @@ function test_getProjectDetailsByJiraKeys() {
 @test:Config
 function test_searchForKeys() {
     SalesforceDatabaseConnector sfdbConnector = new();
-    var connectorResponse = sfdbConnector.searchForKeys("XXX");
+    var connectorResponse = sfdbConnector.searchForKeys("AAA");
     match connectorResponse {
         error e => test:assertFail(msg = e.message);
-        json[] records => {
-            io:println(records);
-        }
+        json[] records => {}
     }
 }
