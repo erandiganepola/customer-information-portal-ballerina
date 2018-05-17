@@ -41,6 +41,7 @@ public type Client object {
         P{{salesforceConfig}} salesforce connector configuration)
     }
     public function init(SalesforceConfiguration salesforceConfig) {
+        salesforceConfig.clientConfig.timeoutMillis = 300000;
         self.salesforceConnector.httpClient.init(salesforceConfig.clientConfig);
     }
 
