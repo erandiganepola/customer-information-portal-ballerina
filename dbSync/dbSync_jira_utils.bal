@@ -19,34 +19,50 @@
 import ballerina/log;
 import ballerina/io;
 
-//TODO : finish after getAllJiraProjects() is finalized
-function upsertToJiraProject(json[] projects) returns boolean|error {
+function upsertToJiraProject(json[] projects) returns boolean {
     log:printDebug(string `Preparing Upsert query for {{lengthof projects}} projects... `);
+    boolean isUpserted;
     string queryValues;
     foreach project in projects{
-        queryValues = queryValues + "," + "(" + "'" + project["key"].toString() + "'" + ","
-            + "'"  + project["name"].toString() + "'" + ","
-            + "'"  + project["category"].toString() + "'"  + ")";
+        //sql:Parameter key = { sqlType: sql:TYPE_VARCHAR, value: project["key"].toString() };
+        //sql:Parameter name = { sqlType: sql:TYPE_VARCHAR, value: project["name"].toString() };
+        //sql:Parameter category = { sqlType: sql:TYPE_VARCHAR, value: project["category"].toString() };
+
+        queryValues = queryValues + "," + "("
+            + "'" + project["key"].toString() + "'" + ","
+            + "'" + project["name"].toString() + "'" + ","
+            + "'" + project["category"].toString() + "'" + ")";
     }
 
     queryValues = queryValues.replaceFirst(COMMA, EMPTY_STRING);
     string q = QUERY_BULK_UPSERT_JIRA_PROJECT.replace("<ENTRIES>", queryValues);
-    log:printInfo("Record status bulk update: " + q);
-    var results = mysqlEP->update(q);
-    match results {
-        int c => {
-            log:printInfo(string `Inserted {{lengthof projects}} Jira Projects. Return value {{c}}`);
-            if (c >= 0){
-                return true;
-            } else {
-                return false;
+    log:printInfo("Record status bulk update starting with query: " + q);
+
+    transaction with retries = 3, oncommit = onCommit, onabort = onAbort {
+        var results = mysqlEP->update(q);
+        match results {
+            int c => {
+                log:printInfo(string `Upserting {{lengthof projects}} JiraProject. Return value {{c}}`);
+                if (c < 0){
+                    log:
+                    printError("Unable to Upsert to JiraProject ");
+                    isUpserted = false;
+                    abort;
+                } else {
+                    log:printDebug("Successful bulk Upsert to JiraProject");
+                    isUpserted = true;
+                }
+            }
+            error e => {
+                //log:printError("Retrying to upsert to 'JiraProjects'", err = e);
+                //isUpserted = false;
+                retry;
             }
         }
-        error e => {
-            log:printError("Unable to insert record status", err = e);
-            return e;
-        }
+    } onretry {
+        log:printWarn("Retrying transaction to upsert to JiraProjects ");
     }
+    return isUpserted;
 }
 
 function getJiraProjectDetailsFromJira() returns json[]|error {

@@ -695,14 +695,6 @@ function hasJiraKey(string[] list, string key) returns boolean {
     return false;
 }
 
-function onDeleteCommitFunction(string transactionId) {
-    log:printDebug("Successful! Upsertion transaction comitted with transaction ID: " + transactionId);
-}
-
-function onDeleteAbortFunction(string transactionId) {
-    log:printDebug("Failed! Upserting transaction aborted with transaction ID: " + transactionId);
-}
-
 function onCommit(string transactionId) {
     log:printDebug("Transaction comitted with transaction ID: " + transactionId);
 }

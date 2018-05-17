@@ -125,20 +125,12 @@ service<http:Service> dataSyncService bind listener {
 
         match getJiraProjectDetailsFromJira() {
             json[] jsonProjects => {
-                match upsertToJiraProject(jsonProjects) {
-                    boolean => {
-                        if(true){
-                            response.setJsonPayload({ "sucess": true,
-                                    error: null });
-                        } else{
-                            response.setJsonPayload({ "sucess": false,
-                                    error: "Unable to upsert records!" });
-                        }
-                    }
-                    error e => {
-                        response.setJsonPayload({ "sucess": false,
-                                error: e.message });
-                    }
+                if (upsertToJiraProject(jsonProjects)){
+                    response.setJsonPayload({ "sucess": true,
+                            error: null });
+                } else {
+                    response.setJsonPayload({ "sucess": false,
+                            error: "Unable to upsert records!" });
                 }
             }
             error e => {
