@@ -18,6 +18,7 @@
 
 import jira7 as jira;
 
+//tranform project summary records to json objects
 function projectSummaryToJson(jira:ProjectSummary[] source) returns json[] {
 
     json[] target = [];
