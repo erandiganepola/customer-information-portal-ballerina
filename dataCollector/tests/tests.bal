@@ -90,14 +90,6 @@ function test_getDataFromSF() {
     }
 }
 
-@test:Config
-function test_categorizeJiraKeys() {
-    log:printInfo("test_function_categorieJiraKeys()");
-    string[] newKeys = ["KEY1", "KEY2"];
-    string[] currentKeys = ["KEY2", "KEY3"];
-    map result = categorizeJiraKeys(newKeys, currentKeys);
-}
-
 // After Suite Function is used to stop the services
 @test:AfterSuite
 function afterSuiteFunc() {
