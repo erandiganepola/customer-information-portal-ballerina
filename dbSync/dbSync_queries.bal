@@ -45,9 +45,18 @@ ON DUPLICATE KEY UPDATE
     jira_key = VALUES(jira_key),
     completed_time = NULL";
 
-@final string QUERY_BULK_UPSERT_JIRA_PROJECT =
+//@final string QUERY_BULK_UPSERT_JIRA_PROJECT =
+//"INSERT INTO JiraProject(jira_key, project_name, category)
+//VALUES <ENTRIES>
+//ON DUPLICATE KEY UPDATE
+//    jira_key = VALUES(jira_key),
+//    project_name = VALUES(project_name),
+//    category = VALUES(category)";
+
+@final string QUERY_UPSERT_JIRA_PROJECT =
 "INSERT INTO JiraProject(jira_key, project_name, category)
-VALUES <ENTRIES>
+VALUES
+    (?,?,?)
 ON DUPLICATE KEY UPDATE
     jira_key = VALUES(jira_key),
     project_name = VALUES(project_name),
@@ -140,21 +149,4 @@ ON DUPLICATE KEY UPDATE
     start_date = VALUES(start_date),
     end_date = VALUES(end_date)";
 
-@final string QUERY_TO_INSERT_VALUES_TO_BATCH_STATUS =
-"INSERT INTO Opportunity_Products (id, state, deletion_completed_time, sync_completed_time, uuid)
-VALUES
-   (?,?,?,?,?)
-ON DUPLICATE KEY UPDATE
-    id = VALUES(id),
-    state = VALUES(state),
-    deletion_completed_time = VALUES(deletion_completed_time),
-    sync_completed_time = VALUES(sync_completion_time),
-    uuid = VALUES(uuid)";
 
-@final string QUERY_TO_INSERT_VALUES_TO_RECORD_STATUS =
-"INSERT INTO Opportunity_Products (jira_key, completed_time)
-VALUES
-   (?,?)
-ON DUPLICATE KEY UPDATE
-    jira_key = VALUES(jira_key),
-    completed_time = VALUES(completed_time)";

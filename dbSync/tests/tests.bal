@@ -14,7 +14,7 @@ function beforeSuiteFunc() {
     log:printInfo("Starting Services...");
 }
 
-//// Test function
+// Test function
 //@test:Config
 //function testStartSalesforceService() {
 //    log:printInfo("testStartSalesforceService");

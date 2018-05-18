@@ -20,7 +20,7 @@
 @final string BATCH_STATUS_IN_PROGRESS = "IN_PROGRESS";
 @final string BATCH_STATUS_COMPLETED = "COMPLETED";
 
-@final int PAGINATE_LIMIT = 5;
+@final int PAGINATE_LIMIT = 400;
 
 //==============================================================================================//
 @final int JIRA_KEY_INDEX = 0;

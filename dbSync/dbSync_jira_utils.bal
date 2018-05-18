@@ -19,51 +19,46 @@
 import ballerina/log;
 import ballerina/io;
 
+boolean completed = false;
 function upsertToJiraProject(json[] projects) returns boolean {
     log:printDebug(string `Preparing Upsert query for {{lengthof projects}} projects... `);
     boolean isUpserted;
     string queryValues;
 
-    json[] temp = [projects[0]];
-    foreach project in temp{
-        //sql:Parameter key = { sqlType: sql:TYPE_VARCHAR, value: project["key"].toString() };
-        //sql:Parameter name = { sqlType: sql:TYPE_VARCHAR, value: project["name"].toString() };
-        //sql:Parameter category = { sqlType: sql:TYPE_VARCHAR, value: project["category"].toString() };
+    transaction with retries = 3, oncommit = onCommitJira, onabort = onAbortJira {
+        foreach project in projects{
+            sql:Parameter key = { sqlType: sql:TYPE_VARCHAR, value: project["key"].toString() };
+            sql:Parameter name = { sqlType: sql:TYPE_VARCHAR, value: project["name"].toString() };
+            sql:Parameter category = { sqlType: sql:TYPE_VARCHAR, value: project["category"].toString() };
 
-        queryValues = queryValues + "," + "("
-            + "'" + project["key"].toString().replace("'","") + "'" + ","
-            + "'" + project["name"].toString().replace("'","") + "'" + ","
-            + "'" + project["category"].toString().replace("'","") + "'" + ")";
-    }
 
-    queryValues = queryValues.replaceFirst(COMMA, EMPTY_STRING);
-    string q = QUERY_BULK_UPSERT_JIRA_PROJECT.replace("<ENTRIES>", queryValues);
-    log:printInfo("Record status bulk update starting with query: " + q);
+            log:printDebug("Jira Project update starting for the key: " + project["key"].toString());
 
-    transaction with retries = 3, oncommit = onCommit, onabort = onAbort {
-        var results = mysqlEP->update(q);
-        match results {
-            int c => {
-                log:printInfo(string `Upserting {{lengthof projects}} JiraProject. Return value {{c}}`);
-                if (c < 0){
-                    log:printError("Unable to Upsert to JiraProject ");
-                    isUpserted = false;
-                    abort;
-                } else {
-                    log:printDebug("Successful bulk Upsert to JiraProject");
-                    isUpserted = true;
+            var results = mysqlEP->update(QUERY_UPSERT_JIRA_PROJECT, key, name, category);
+            match results {
+                int c => {
+                    log:printDebug(string `Upserting {{lengthof projects}} JiraProject. Return value {{c}}`);
+                    if (c < 0){
+                        log:
+                        printError("Unable to Upsert to JiraProject ");
+                        abort;
+                    } else {
+                        log:printDebug("Successful Upsert to JiraProject");
+                    }
+                }
+                error e => {
+                    //log:printError("Retrying to upsert to 'JiraProjects'", err = e);
+                    retry;
                 }
             }
-            error e => {
-                log:printError("Retrying to upsert to 'JiraProjects'", err = e);
-                isUpserted = false;
-                retry;
-            }
         }
-    } onretry {
+    }
+    onretry {
         log:printWarn("Retrying transaction to upsert to JiraProjects ");
     }
-    return isUpserted;
+    log:printInfo(string `Attempted transactions : {{ lengthof projects}}. Completed all transactions : {{completed}} `)
+    ;
+    return completed;
 }
 
 function getJiraProjectDetailsFromJira() returns json[]|error {
@@ -91,4 +86,13 @@ function getJiraProjectDetailsFromJira() returns json[]|error {
             return e;
         }
     }
+}
+
+function onCommitJira(string transactionId) {
+    log:printInfo("Transaction comitted with transaction ID: " + transactionId);
+    completed = true;
+}
+
+function onAbortJira(string transactionId) {
+    log:printInfo("Failed - aborted transaction with transaction ID: " + transactionId);
 }
