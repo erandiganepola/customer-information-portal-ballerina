@@ -293,7 +293,7 @@ function syncSfDataForJiraKeys(string uuid, string[] jiraKeys) {
     string[] paginatedKeys = [];
     json[] paginatedRecords;
     int lengthOfJiraKeys = lengthof jiraKeys;
-    int paginateLimit = PAGINATE_LIMIT;
+    int paginateLimit = BATCH_SIZE;
     int i = 0;
     int j = 0;
     int k = 0;
@@ -303,10 +303,9 @@ function syncSfDataForJiraKeys(string uuid, string[] jiraKeys) {
         paginatedKeys[i] = jiraKeys[j];
         i++;
         j++;
-        io:println(j);
         lengthOfJiraKeys--;
 
-        if ((i == PAGINATE_LIMIT) || (lengthof jiraKeys < PAGINATE_LIMIT && i == lengthof jiraKeys - 1)){
+        if ((i == BATCH_SIZE) || (lengthof jiraKeys < BATCH_SIZE && i == lengthof jiraKeys - 1)){
             i = 0;
             http:Request httpRequest = new;
             match <json>paginatedKeys {
@@ -387,7 +386,6 @@ function organizeSfData(json[] records) returns map {
     foreach record in records {
         string jiraKey = record[SUPPORT_ACCOUNTS__R][RECORDS][JIRA_KEY_INDEX]
         [JIRA_KEY__C].toString();
-        io:println(jiraKey);
 
         json opportunity = {
             "Id": record[ID],

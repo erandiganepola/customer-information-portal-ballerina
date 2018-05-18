@@ -71,6 +71,7 @@ function prepareQueryUrl(string[] paths, string[] queryParamNames, string[] quer
         }
     }
 
+    //io:println(url);
     return url;
 }
 
