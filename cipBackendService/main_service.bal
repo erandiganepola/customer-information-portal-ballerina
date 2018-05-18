@@ -31,13 +31,13 @@ endpoint http:Listener listener {
 
 @http:ServiceConfig {
     endpoints: [listener],
-    basePath: "/server"
+    basePath: "cip/server"
 }
 service<http:Service> CIPService bind listener {
 
     @http:ResourceConfig {
         methods: ["GET"],
-        path: "/search/jiraKeys"
+        path: "/search/jira"
     }
     getJiraProjectMatches(endpoint caller, http:Request request) {
 
