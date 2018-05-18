@@ -43,6 +43,7 @@ public type Client object {
 
         userConfig.clientConfig.url += JIRA_REST_API_RESOURCE + JIRA_REST_API_VERSION;
         userConfig.clientConfig.chunking = "NEVER";
+        userConfig.clientConfig.timeoutMillis = 300000;
         jiraConnector.jiraHttpClient.init(userConfig.clientConfig);
     }
 

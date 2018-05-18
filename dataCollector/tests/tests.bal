@@ -5,7 +5,7 @@ import ballerina/log;
 import balerina/config;
 
 endpoint http:Client httpClientEP{
-    url: "http://localhost:" + config:getAsString("DATA_COLLECTOR_HTTP_PORT")
+    url: config:getAsString("DATA_COLLECTOR_URI"), timeoutMillis:300000
 };
 
 json test_jiraKeyList;

@@ -23,7 +23,7 @@ import ballerina/http;
 import ballerina/config;
 
 endpoint http:Client dbSyncHttpClientEP{
-    url: config:getAsString("DB_SYNC_SERVICE_URI")
+    url: config:getAsString("DB_SYNC_SERVICE_URI"), timeoutMillis:300000
 };
 
 task:Appointment? scheduler1;
