@@ -23,7 +23,8 @@ function test_getAllJiraKeys() {
     log:printInfo("test_service_getAllJiraKeys()");
 
     http:Request httpRequest = new;
-    var out = httpClientEP->get("/collector/jira/keys", request = httpRequest);
+    var out = httpClientEP->get(DATA_COLLECTOR_SERVICE_BASE_PATH + DATA_COLLECTOR_JIRA_KEYS_RESOURCE, request =
+        httpRequest);
     match out {
         http:Response resp => {
             json dcResponse = check resp.getJsonPayload();
@@ -46,7 +47,8 @@ function test_getAllJiraProjects() {
     log:printInfo("test_service_getAllJiraProjects()");
 
     http:Request httpRequest = new;
-    var out = httpClientEP->get("/collector/jira/projects", request = httpRequest);
+    var out = httpClientEP->get(DATA_COLLECTOR_SERVICE_BASE_PATH + DATA_COLLECTOR_JIRA_PROJECTS_RESOURCE, request =
+        httpRequest);
     match out {
         http:Response resp => {
             json dcResponse = check resp.getJsonPayload();
@@ -73,7 +75,8 @@ function test_getDataFromSF() {
     json jirakeys = ["AAALIFEPROD", "CINECADEVSVC", "TRIMBLEINTERNAL", "IBMCOGNOSOEMSPRT", "IBMFILENETSESSPRT"];
 
     httpRequest.setJsonPayload(jirakeys);
-    var out = httpClientEP->post("/collector/salesforce/", request = httpRequest);
+    var out = httpClientEP->post(DATA_COLLECTOR_SERVICE_BASE_PATH + DATA_COLLECTOR_SALESFORCE_RESOURCE, request =
+        httpRequest);
     match out {
         http:Response resp => {
             json dcResponse = check resp.getJsonPayload();

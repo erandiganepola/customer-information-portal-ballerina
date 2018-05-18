@@ -48,14 +48,11 @@ function main(string... args) {
 
 function beginSync() returns (error?) {
     log:printDebug("scheduler 1 triggered full Database Sync");
-
-    http:Request request=new
-    var response = dbSyncHttpClientEP->post()
     return ();
 }
 
 function checkStatus() returns (error?) {
-    log:printDebug("schedular 2 triggered sync progress checking");
+    log:printDebug("schedular 2 triggered database sync progress checking");
     return ();
 }
 

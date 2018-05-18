@@ -24,20 +24,26 @@ import ballerina/log;
 import ballerina/config;
 import sfdbConnector;
 
-
 endpoint http:Listener listener {
     port: 9001
 };
 
 @http:ServiceConfig {
     endpoints: [listener],
-    basePath: "/server"
+    basePath: "cip/server",
+    cors: {
+        allowOrigins: ["*"],
+        allowCredentials: false,
+        allowHeaders: ["CORELATION_ID"],
+        exposeHeaders: ["X-CUSTOM-HEADER"],
+        maxAge: 84900
+    }
 }
 service<http:Service> CIPService bind listener {
 
     @http:ResourceConfig {
         methods: ["GET"],
-        path: "/search/jiraKeys"
+        path: "/search/jira"
     }
     getJiraProjectMatches(endpoint caller, http:Request request) {
 
