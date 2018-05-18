@@ -18,7 +18,7 @@
 
 import ballerina/io;
 
-//this util fuction is used to
+//this util fuction is used to combine json or string array of jira keys with a defined query template
 public function buildQueryFromTemplate(string template, json|string[] jiraKeys) returns string {
 
     string key_tuple = EMPTY_STRING;
@@ -58,29 +58,6 @@ public function fetchSalesforceData(string|json jiraKeysOrNextRecordUrl) returns
             return connectorResponse;
         }
     }
-}
-
-public function categorizeJiraKeys(string[] newKeys, string[] currentKeys) returns map {
-
-    string[] toBeUpserted = [];
-    string[] toBeDeleted = [];
-    int i_upsert = 0;
-    int i_delete = 0;
-
-    foreach (key in newKeys){
-        toBeUpserted[i_upsert] = key;
-        i_upsert++;
-    }
-
-    foreach (key in currentKeys){
-        if (!hasJiraKey(newKeys, key)){ //update
-            toBeDeleted[i_delete] = key;
-            i_delete++;
-        }
-    }
-
-    map result = { "toBeUpserted": toBeUpserted, "toBeDeleted": toBeDeleted };
-    return result;
 }
 
 //Returns true if the input list has the given jira key
