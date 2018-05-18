@@ -23,15 +23,17 @@ function upsertToJiraProject(json[] projects) returns boolean {
     log:printDebug(string `Preparing Upsert query for {{lengthof projects}} projects... `);
     boolean isUpserted;
     string queryValues;
-    foreach project in projects{
+
+    json[] temp = [projects[0]];
+    foreach project in temp{
         //sql:Parameter key = { sqlType: sql:TYPE_VARCHAR, value: project["key"].toString() };
         //sql:Parameter name = { sqlType: sql:TYPE_VARCHAR, value: project["name"].toString() };
         //sql:Parameter category = { sqlType: sql:TYPE_VARCHAR, value: project["category"].toString() };
 
         queryValues = queryValues + "," + "("
-            + "'" + project["key"].toString() + "'" + ","
-            + "'" + project["name"].toString() + "'" + ","
-            + "'" + project["category"].toString() + "'" + ")";
+            + "'" + project["key"].toString().replace("'","") + "'" + ","
+            + "'" + project["name"].toString().replace("'","") + "'" + ","
+            + "'" + project["category"].toString().replace("'","") + "'" + ")";
     }
 
     queryValues = queryValues.replaceFirst(COMMA, EMPTY_STRING);
@@ -44,8 +46,7 @@ function upsertToJiraProject(json[] projects) returns boolean {
             int c => {
                 log:printInfo(string `Upserting {{lengthof projects}} JiraProject. Return value {{c}}`);
                 if (c < 0){
-                    log:
-                    printError("Unable to Upsert to JiraProject ");
+                    log:printError("Unable to Upsert to JiraProject ");
                     isUpserted = false;
                     abort;
                 } else {
@@ -54,8 +55,8 @@ function upsertToJiraProject(json[] projects) returns boolean {
                 }
             }
             error e => {
-                //log:printError("Retrying to upsert to 'JiraProjects'", err = e);
-                //isUpserted = false;
+                log:printError("Retrying to upsert to 'JiraProjects'", err = e);
+                isUpserted = false;
                 retry;
             }
         }
