@@ -293,7 +293,7 @@ function syncSfDataForJiraKeys(string uuid, string[] jiraKeys) {
     string[] paginatedKeys = [];
     json[] paginatedRecords;
     int lengthOfJiraKeys = lengthof jiraKeys;
-    int paginateLimit = PAGINATE_LIMIT;
+    int paginateLimit = BATCH_SIZE;
     int i = 0;
     int j = 0;
     int k = 0;
@@ -305,7 +305,7 @@ function syncSfDataForJiraKeys(string uuid, string[] jiraKeys) {
         j++;
         lengthOfJiraKeys--;
 
-        if ((i == PAGINATE_LIMIT) || (lengthof jiraKeys < PAGINATE_LIMIT && i == lengthof jiraKeys - 1)){
+        if ((i == BATCH_SIZE) || (lengthof jiraKeys < BATCH_SIZE && i == lengthof jiraKeys - 1)){
             i = 0;
             http:Request httpRequest = new;
             match <json>paginatedKeys {

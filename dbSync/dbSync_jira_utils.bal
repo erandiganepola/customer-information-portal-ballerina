@@ -22,7 +22,6 @@ import ballerina/io;
 boolean completed = false;
 function upsertToJiraProject(json[] projects) returns boolean {
     log:printDebug(string `Preparing Upsert query for {{lengthof projects}} projects... `);
-    boolean isUpserted;
     string queryValues;
 
     transaction with retries = 3, oncommit = onCommitJira, onabort = onAbortJira {
@@ -56,8 +55,7 @@ function upsertToJiraProject(json[] projects) returns boolean {
     onretry {
         log:printWarn("Retrying transaction to upsert to JiraProjects ");
     }
-    log:printInfo(string `Attempted transactions : {{ lengthof projects}}. Completed all transactions : {{completed}} `)
-    ;
+    log:printInfo(string `Attempted transactions : {{ lengthof projects}}. Completed all transactions :{{completed}} `);
     return completed;
 }
 
