@@ -25,7 +25,7 @@ import ballerina/config;
 import sfdbConnector;
 
 endpoint http:Listener listener {
-    port: 9001
+    port: config:getAsInt("CIP_SERVER_HTTP_PORT")
 };
 
 @http:ServiceConfig {
@@ -61,6 +61,7 @@ service<http:Service> CIPService bind listener {
 
         if (pattern != ""){
             sfdbConnector:SalesforceDatabaseConnector sfdbConnector = new;
+
             response.setJsonPayload(check sfdbConnector.searchForKeys(pattern));
         }
         caller->respond(response) but {
