@@ -43,7 +43,43 @@ public function buildQueryFromTemplate(string template, json|string[] jiraKeys) 
     return resultQuery;
 }
 
-public function fetchSalesforceData(string|json jiraKeysOrNextRecordUrl) returns json|sfdc:SalesforceConnectorError {
+//returns combined response of a set of paginated salesforce responses
+function fetchPaginatedDataFromSalesforce(json sfResponse) returns json[]|error|sfdc:SalesforceConnectorError {
+
+    match <json[]>sfResponse[RECORDS]{
+        error e => return e;
+        json[] records => {
+            string nextRecordsUrl = sfResponse[NEXT_RECORDS_URL].toString();
+            while (nextRecordsUrl != NULL) { //if the salesforce response is paginated
+                int i = lengthof records;
+                log:printDebug("nextRecodsUrl is recieved: " + nextRecordsUrl);
+                match fetchSalesforceData(nextRecordsUrl) {
+                    sfdc:SalesforceConnectorError e => {
+                        return e;
+                    }
+                    json sfResponse => {
+                        match <json[]>sfResponse[RECORDS]{
+                            json[] nextRecords => {
+                                foreach item in nextRecords{
+                                    records[i] = item;
+                                    i++;
+                                }
+                                nextRecordsUrl = sfResponse[NEXT_RECORDS_URL].toString();
+                            }
+                            error e => {
+                                return e;
+                            }
+                        }
+                    }
+                }
+            }
+            log:printDebug(<string>(lengthof records) + "records were fetched from salesforce successfully");
+            return records;
+        }
+    }
+}
+
+function fetchSalesforceData(string|json jiraKeysOrNextRecordUrl) returns json|sfdc:SalesforceConnectorError {
 
     match jiraKeysOrNextRecordUrl {
 
@@ -57,6 +93,18 @@ public function fetchSalesforceData(string|json jiraKeysOrNextRecordUrl) returns
             var connectorResponse = salesforceClientEP->getQueryResult(SOQuery);
             return connectorResponse;
         }
+    }
+}
+
+
+
+//checks whether a given salesforce response data is paginated ( more data to be fetched )
+function hasPaginatedData(json sfResponse) returns boolean {
+    string nextRecordsUrl = sfResponse[NEXT_RECORDS_URL].toString();
+    if (nextRecordsUrl != NULL)  {
+        return true;
+    } else {
+        return false;
     }
 }
 
