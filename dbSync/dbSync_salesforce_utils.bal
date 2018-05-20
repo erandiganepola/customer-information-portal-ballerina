@@ -54,7 +54,7 @@ function syncSfDataForJiraKeys(string uuid, string[] jiraKeys) {
 
     // Sending full Salesforce data set to be organized
     log:printDebug("Salesforce records count : " + (lengthof records));
-    map organizedSfDataMap = organizeSfData(records);
+    map organizedSfDataMap = organizeSfData(jiraKeys, records);
 
     if (upsertRecordStatus(organizedSfDataMap.keys())){
         log:printInfo(string `Upserting {{lengthof organizedSfDataMap.keys()}} records into Salesforce DB ...`);
@@ -107,12 +107,14 @@ function collectSFData(string[] jiraKeys) returns json[] {
     return results;
 }
 
-function organizeSfData(json[] records) returns map {
+function organizeSfData(string[] jiraKeys, json[] records) returns map {
     map<json[]> sfDataMap;
-    foreach record in records {
-        string jiraKey = record[SUPPORT_ACCOUNTS__R][RECORDS][JIRA_KEY_INDEX]
-        [JIRA_KEY__C].toString();
 
+    foreach jiraKey in jiraKeys {
+        sfDataMap[jiraKey] = [];
+    }
+
+    foreach record in records {
         json opportunity = {
             "Id": record[ID],
             "Account": {
@@ -130,15 +132,35 @@ function organizeSfData(json[] records) returns map {
             "OpportunityLineItems": []
         };
 
-        foreach supportAccount in record[SUPPORT_ACCOUNTS__R][RECORDS] {
-            json account = {
-                "Id": supportAccount[ID],
-                "JiraKey": supportAccount[JIRA_KEY__C],
-                "StartDate": supportAccount[START_DATE__C],
-                "EndDate": supportAccount[END_DATE__C]
-            };
+        string[] keys = [];
 
-            opportunity[SUPPORT_ACCOUNTS][lengthof opportunity[SUPPORT_ACCOUNTS]] = account;
+        // Skipping null jira keys
+        if (record[SUPPORT_ACCOUNTS__R] != ()) {
+            match <json[]>record[SUPPORT_ACCOUNTS__R][RECORDS] {
+                json[] supportAccounts => {
+                    foreach supportAccount in supportAccounts {
+                        if (supportAccount[JIRA_KEY__C] != ()){
+                            keys[lengthof keys] = supportAccount[JIRA_KEY__C].toString();
+                        } else {
+                            log:printWarn("Found 'null' JIRA key for support account: " + supportAccount.toString());
+                        }
+                    }
+                }
+                error e => {
+                    log:printError("Unable to get support accounts for opportunity: " + record[ID].toString(), err = e);
+                }
+            }
+
+            foreach supportAccount in record[SUPPORT_ACCOUNTS__R][RECORDS] {
+                json account = {
+                    "Id": supportAccount[ID],
+                    "JiraKey": supportAccount[JIRA_KEY__C],
+                    "StartDate": supportAccount[START_DATE__C],
+                    "EndDate": supportAccount[END_DATE__C]
+                };
+
+                opportunity[SUPPORT_ACCOUNTS][lengthof opportunity[SUPPORT_ACCOUNTS]] = account;
+            }
         }
 
         if (record[OPPORTUNITY_LINE_ITEMS][RECORDS] != ()){
@@ -154,14 +176,15 @@ function organizeSfData(json[] records) returns map {
             }
         }
 
-        if (!sfDataMap.hasKey(jiraKey)) {
-            log:printDebug("Adding new Jira key: " + jiraKey);
-            sfDataMap[jiraKey] = [opportunity];
-        } else {
-            log:printDebug("Adding data for existing Jira key: " + jiraKey);
-            int index = (lengthof sfDataMap[jiraKey]);
-
-            sfDataMap[jiraKey][index] = opportunity;
+        foreach jiraKey in keys {
+            if (!sfDataMap.hasKey(jiraKey)) {
+                log:printDebug("Adding new Jira key: " + jiraKey);
+                sfDataMap[jiraKey] = [opportunity];
+            } else {
+                //log:printDebug("Adding data for existing Jira key: " + jiraKey);
+                int index = (lengthof sfDataMap[jiraKey]);
+                sfDataMap[jiraKey][index] = opportunity;
+            }
         }
     }
     return sfDataMap;
@@ -173,7 +196,7 @@ function upsertDataIntoSfDb(map organizedDataMap, string uuid) {
     foreach key, value in organizedDataMap{
         log:printDebug("\n");
         log:printInfo("Upserting transaction starting for jira key : " + key);
-        //Start transaction
+        // Start transaction
         transaction with retries = 3, oncommit = onUpsertCommitFunction, onabort = onUpsertAbortFunction {
             match getRecordStatusWithLock(key) {
                 // TODO should we take RecordStatus lock first and check BatchStatus, or other way round?
@@ -182,11 +205,10 @@ function upsertDataIntoSfDb(map organizedDataMap, string uuid) {
                     // Batch status table is not locked at the moment. Should it be locked as well?
                     match getBatchStatus() {
                         BatchStatus bs => {
-                            if (bs.uuid == uuid){
-                                //proceed
-                            } else {
+                            if (bs.uuid != uuid) {
                                 log:printWarn(string `UUID has changed from {{uuid}} to {{bs.uuid}}
                                     . Another process has taken over`);
+                                abort;
                             }
                         }
                         () => {
@@ -194,16 +216,18 @@ function upsertDataIntoSfDb(map organizedDataMap, string uuid) {
                             abort;
                         }
                         error e => {
-                            log:printError("Unable to get batch status. Aborting", err = e);
-                            abort;
+                            //log:printError("Unable to get batch status. Aborting", err = e);
+                            retry;
                         }
                     }
                 }
                 () => {
-                    log:printDebug(string `Unable to lock RecorsStatus table row for key: {{key}}`);
+                    //log:printDebug(string `Unable to lock RecorsStatus table row for key: {{key}}`);
+                    retry;
                 }
                 error e => {
-                    log:printError("Error occured when getting the row lock for key: " + key, err = e);
+                    //log:printError("Error occured when getting the row lock for key: " + key, err = e);
+                    retry;
                 }
             }
 
