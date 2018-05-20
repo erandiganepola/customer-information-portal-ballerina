@@ -28,8 +28,6 @@ function syncSfDataForJiraKeys(string uuid, string[] jiraKeys) {
     int i = 0;
     string[] keys = [];
     while (i < lengthof jiraKeys) {
-        keys[i % BATCH_SIZE] = jiraKeys[i];
-
         if (i > 0 && (i % BATCH_SIZE == 0 || i == lengthof jiraKeys - 1)) {
             json[] newRecords = collectSFData(keys);
             int k = lengthof records;
@@ -40,6 +38,7 @@ function syncSfDataForJiraKeys(string uuid, string[] jiraKeys) {
 
             keys = [];
         }
+        keys[i % BATCH_SIZE] = jiraKeys[i];
         i++;
     }
 
