@@ -129,6 +129,28 @@ function getBatchStatusWithLock() returns BatchStatus|()|error {
     }
 }
 
+function getRecordStatusWithLock(string jiraKey) returns RecordStatus|()|error {
+    RecordStatus|() recordStatus = ();
+    var results = mysqlEP->select((QUERY_GET_BATCH_STATUS_WITH_LOCK, jiraKey), RecordStatus);
+    // get record status
+    match results {
+        table<RecordStatus> entries => {
+            while (entries.hasNext()){
+                match <RecordStatus>entries.getNext()  {
+                    RecordStatus rs => recordStatus = rs;
+                    error e => log:printError("Unable to get record status", err = e);
+                }
+            }
+
+            return recordStatus;
+        }
+        error e => {
+            log:printError("Unable to get record status", err = e);
+            return e;
+        }
+    }
+}
+
 // Should be called within a transaction and having the row lock
 function setBatchStatus(string uuid, string status) returns boolean {
     var updateResult = mysqlEP->update(QUERY_SET_BATCH_STATUS, uuid, status);
@@ -374,7 +396,7 @@ function syncSfDataForJiraKeys(string uuid, string[] jiraKeys) {
 
     if (upsertRecordStatus(organizedSfDataMap.keys())){
         log:printInfo(string `Upserting {{lengthof organizedSfDataMap.keys()}} records into Salesforce DB ...`);
-        upsertDataIntoSfDb(organizedSfDataMap);
+        upsertDataIntoSfDb(organizedSfDataMap, uuid);
         checkAndSetBatchCompleted(jiraKeys, uuid);
     } else {
         log:printError("Unable to insert record status properly. Aborting");
@@ -524,7 +546,8 @@ function buildQueryFromTemplate(string template, string replace, string[] entrie
 
 //=================================================================================================//
 // Upsert data into Salesforce database tables
-function upsertDataIntoSfDb(map organizedDataMap) {
+function upsertDataIntoSfDb(map organizedDataMap, string uuid) {
+    //TODO : define string values as SQL params. Take SQL params to another file
     foreach key, value in organizedDataMap{
         log:printDebug("\n");
         log:printInfo("Upserting transaction starting for jira key : " + key);
@@ -532,6 +555,28 @@ function upsertDataIntoSfDb(map organizedDataMap) {
         transaction with retries = 3, oncommit = onUpsertCommitFunction, onabort = onUpsertAbortFunction {
         // TODO lock record status row
         // TODO get the batch_id from batch_status table and check if that's equal to mine
+
+            match getRecordStatusWithLock(key) {
+                RecordStatus => {
+                    log:printDebug(string `RecorsStatus table row locked for key: {{key}}`);
+                    match getBatchStatus() {
+                        BatchStatus bs => {
+                            if (bs.uuid == uuid){
+                                //proceed
+                            }
+                        }
+                        ()|error => {
+                            //stop process
+                        }
+                    }
+                }
+                () => {
+                    log:printDebug(string `Unable to lock RecorsStatus table row for key: {{key}}`);
+                }
+                error e => {
+                    log:printError("Error occured when getting the row lock for key: " + key, err = e);
+                }
+            }
 
             foreach opportunity in check <json[]>value {
                 //Inserting to Account table
