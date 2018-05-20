@@ -68,50 +68,31 @@ service<http:Service> dataCollector bind listener {
 
         http:Response response = new;
 
-        var payloadIn = request.getJsonPayload(); //retrieve jira key list from the json payload of the request
+        var payloadIn = request.getJsonPayload();
+        //extract jira key list from the json payload of the HTTP request
         match payloadIn {
             error e => setErrorResponse(response, e);
             json jiraKeys => {
                 match fetchSalesforceData(jiraKeys) {
                     sfdc:SalesforceConnectorError e => setErrorResponse(response, e);
                     json sfResponse => {
-                        match <json[]>sfResponse[RECORDS]{
-                            error e => setErrorResponse(response, e);
-                            json[] records => {
-                                boolean flag_paginationError = false;
-                                string nextRecordsUrl = sfResponse[NEXT_RECORDS_URL].toString();
-                                while (nextRecordsUrl != NULL) { //if the salesforce response is paginated
-                                    int i = lengthof records;
-                                    log:printDebug("nextRecodsUrl is recieved: " + nextRecordsUrl);
-                                    match fetchSalesforceData(nextRecordsUrl) {
-                                        sfdc:SalesforceConnectorError e => {
-                                            setErrorResponse(response, e);
-                                            nextRecordsUrl = EMPTY_STRING;
-                                            flag_paginationError = true;
-                                        }
-                                        json sfResponse => {
-                                            match <json[]>sfResponse[RECORDS]{
-                                                json[] nextRecords => {
-                                                    foreach item in nextRecords{
-                                                        records[i] = item;
-                                                        i++;
-                                                    }
-                                                    nextRecordsUrl = sfResponse[NEXT_RECORDS_URL].toString();
-                                                }
-                                                error e => {
-                                                    setErrorResponse(response, e);
-                                                    nextRecordsUrl = EMPTY_STRING;
-                                                    flag_paginationError = true;
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                                if (flag_paginationError == false){
+                        if (hasPaginatedData(sfResponse) == false){
+                            match <json[]>sfResponse[RECORDS]{
+                                error e => setErrorResponse(response, e);
+                                json[] records => {
                                     log:printDebug(<string>(lengthof records) +
                                             "records were fetched from salesforce successfully");
                                     setSuccessResponse(response, records);
                                 }
+                            }
+                        } else {
+                            match fetchPaginatedDataFromSalesforce(sfResponse) {
+                                json[] records => {
+                                    log:printDebug(<string>(lengthof records) +
+                                            "records were fetched from salesforce successfully");
+                                    setSuccessResponse(response, records);
+                                }
+                                error|sfdc:SalesforceConnectorError e => setErrorResponse(response, e);
                             }
                         }
                     }
