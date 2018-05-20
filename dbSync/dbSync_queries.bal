@@ -49,14 +49,6 @@ ON DUPLICATE KEY UPDATE
     jira_key = VALUES(jira_key),
     completed_time = NULL";
 
-//@final string QUERY_BULK_UPSERT_JIRA_PROJECT =
-//"INSERT INTO JiraProject(jira_key, project_name, category)
-//VALUES <ENTRIES>
-//ON DUPLICATE KEY UPDATE
-//    jira_key = VALUES(jira_key),
-//    project_name = VALUES(project_name),
-//    category = VALUES(category)";
-
 @final string QUERY_UPSERT_JIRA_PROJECT =
 "INSERT INTO JiraProject(jira_key, project_name, category)
 VALUES

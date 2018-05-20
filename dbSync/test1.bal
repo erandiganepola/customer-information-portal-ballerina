@@ -56,11 +56,11 @@
 //    sql:Parameter para4 = { sqlType: sql:TYPE_VARCHAR, value: "Peter" };
 //    sql:Parameter[] parameters2 = [para3, para4];
 //
-//    sql:Parameter[][] array = [parameters1,parameters2];
+//    sql:Parameter[][] array = [parameters1, parameters2];
 //
 //    //Do the batch update by passing the multiple parameter arrays.
 //    var retBatch = testDB->batchUpdate("INSERT INTO student(age, name)
-//                    values (?, ?)", array);
+//                    values (?, ?)", ...array);
 //    match retBatch {
 //        int[] counts => {
 //            io:println("Batch 1 update counts: " + counts[0]);

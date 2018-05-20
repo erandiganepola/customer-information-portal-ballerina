@@ -1,24 +1,26 @@
-JIRA_ENDPOINT="jira_endpoint"
-JIRA_USERNAME="your_username"
-JIRA_PASSWORD="your_password"
+JIRA_ENDPOINT=""
+JIRA_USERNAME=""
+JIRA_PASSWORD=""
 
-SALESFORCE_ENDPOINT="salesforce_endpoint"
-SALESFORCE_ACCESS_TOKEN="your_access_token"
-SALESFORCE_CLIENT_ID="your_client_id"
-SALESFORCE_CLIENT_SECRET="your_client_secret"
-SALESFORCE_REFRESH_TOKEN="your_refresh_token"
-SALESFORCE_REFRESH_URL="salesforce_refresh_url"
+SALESFORCE_ENDPOINT=""
+SALESFORCE_ACCESS_TOKEN=""
+SALESFORCE_CLIENT_ID=""
+SALESFORCE_CLIENT_SECRET=""
+SALESFORCE_REFRESH_TOKEN=""
+SALESFORCE_REFRESH_URL=""
 
-HOST="host"
-PORT=<port_number>
-NAME="db_name"
-USERNAME="db_username"
-PASSWORD="db_password"
-POOL_SIZE=<pool_size_number>
+SFDB_HOST=""
+SFDB_PORT=
+SFDB_NAME=""
+SFDB_USERNAME=""
+SFDB_PASSWORD=""
+SFDB_POOL_SIZE=
 
-HTTP_ENDPOINT_URL="http_url"
-DATA_SYNC_SERVICE_HTTP_PORT=<data_sync_service_port_number>
-DATA_COLLECTOR_PORT=<data_collector_service_port_number>
+DB_SYNC_SERVICE_URI=""
+DB_SYNC_SERVICE_HTTP_PORT=
+
+DATA_COLLECTOR_URI=""
+DATA_COLLECTOR_HTTP_PORT=
 
 [b7a.log]
 level="ALL"
