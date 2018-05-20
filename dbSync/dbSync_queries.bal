@@ -16,8 +16,12 @@
 // under the License.
 //
 
+//todo: change batch completed_time to updated_time
 @final string QUERY_GET_BATCH_STATUS_WITH_LOCK =
 "SELECT uuid, state, completed_time FROM BatchStatus LIMIT 1 FOR UPDATE";
+
+@final string QUERY_GET_RECORD_STATUS_WITH_LOCK =
+"SELECT completed_time FROM RecordStatus WHERE jira_key = ? FOR UPDATE";
 
 @final string QUERY_GET_BATCH_STATUS =
 "SELECT uuid, state, completed_time FROM BatchStatus LIMIT 1";

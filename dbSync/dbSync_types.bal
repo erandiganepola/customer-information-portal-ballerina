@@ -22,6 +22,11 @@ type BatchStatus {
     string completed_time;
 };
 
+type RecordStatus {
+    string jira_key;
+    string completed_time;
+};
+
 type RecordCount {
     int c;
 };
