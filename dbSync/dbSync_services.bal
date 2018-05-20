@@ -90,8 +90,8 @@ service<http:Service> dataSyncService bind listener {
                         log:printDebug("Getting active JIRA keys from JIRA");
                         match getJiraKeysFromJira() {
                             string[] jiraKeys => {
-                                syncSfDataForJiraKeys(batchId, jiraKeys);
-                                //syncSfDataForJiraKeys(batchId, jiraKeysToBeUpserted);
+                                //syncSfDataForJiraKeys(batchId, jiraKeys);
+                                syncSfDataForJiraKeys(batchId, jiraKeysToBeUpserted);
                             }
                             error e => log:printError("Error occurred while getting JIRA keys. Error: " + e.message);
                         }
@@ -126,11 +126,9 @@ service<http:Service> dataSyncService bind listener {
         match getJiraProjectDetailsFromJira() {
             json[] jsonProjects => {
                 if (upsertToJiraProject(jsonProjects)){
-                    response.setJsonPayload({ "sucess": true,
-                            error: null });
+                    response.setJsonPayload({ "sucess": true, error: null });
                 } else {
-                    response.setJsonPayload({ "sucess": false,
-                            error: "Unable to upsert records!" });
+                    response.setJsonPayload({ "sucess": false, error: "Unable to upsert records!" });
                 }
             }
             error e => {

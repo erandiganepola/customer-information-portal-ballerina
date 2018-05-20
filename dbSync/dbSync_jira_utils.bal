@@ -19,17 +19,17 @@
 import ballerina/log;
 import ballerina/io;
 
-boolean completed = false;
 function upsertToJiraProject(json[] projects) returns boolean {
     log:printDebug(string `Preparing Upsert query for {{lengthof projects}} projects... `);
     string queryValues;
 
+    string[] jiraKeys = [];
     transaction with retries = 3, oncommit = onCommitJira, onabort = onAbortJira {
+        int i = 0;
         foreach project in projects{
             sql:Parameter key = { sqlType: sql:TYPE_VARCHAR, value: project["key"].toString() };
             sql:Parameter name = { sqlType: sql:TYPE_VARCHAR, value: project["name"].toString() };
             sql:Parameter category = { sqlType: sql:TYPE_VARCHAR, value: project["category"].toString() };
-
 
             log:printDebug("Jira Project update starting for the key: " + project["key"].toString());
 
@@ -37,9 +37,8 @@ function upsertToJiraProject(json[] projects) returns boolean {
             match results {
                 int c => {
                     log:printDebug(string `Upserting {{lengthof projects}} JiraProject. Return value {{c}}`);
-                    if (c < 0){
-                        log:
-                        printError("Unable to Upsert to JiraProject ");
+                    if (c < 0) {
+                        log:printError("Unable to Upsert to JiraProject ");
                         abort;
                     } else {
                         log:printDebug("Successful Upsert to JiraProject");
@@ -50,13 +49,32 @@ function upsertToJiraProject(json[] projects) returns boolean {
                     retry;
                 }
             }
+
+            jiraKeys[i] = project["key"].toString();
+            i++;
         }
-    }
-    onretry {
+    } onretry {
         log:printWarn("Retrying transaction to upsert to JiraProjects ");
     }
-    log:printInfo(string `Attempted transactions : {{ lengthof projects}}. Completed all transactions :{{completed}} `);
-    return completed;
+
+    string q = buildQueryFromTemplate("SELECT COUNT(*) as c FROM JiraProject WHERE jira_key IN <JIRA_KEY_LIST>",
+        "<JIRA_KEY_LIST>", jiraKeys);
+    var count = mysqlEP->select(q, RecordCount);
+    int c = -1;
+
+    match count {
+        table tb => {
+            while (tb.hasNext()) {
+                match <RecordCount>tb.getNext() {
+                    RecordCount rc => c = rc.c;
+                    error e => log:printError("Unable to read inserted project count", err = e);
+                }
+            }
+        }
+        error e => log:printError("Unable to check inserted project count", err = e);
+    }
+
+    return lengthof jiraKeys == lengthof projects && c == lengthof jiraKeys;
 }
 
 function getJiraProjectDetailsFromJira() returns json[]|error {
@@ -86,9 +104,33 @@ function getJiraProjectDetailsFromJira() returns json[]|error {
     }
 }
 
+function getJiraKeysFromJira() returns string[]|error {
+    //Get JIRA keys from JIRA API
+    http:Request httpRequest = new;
+    var jiraResponse = httpClientEP->get("/collector/jira/keys", request = httpRequest);
+    match jiraResponse {
+        http:Response resp => {
+            json jsonResponse = resp.getJsonPayload() but {
+                error e => log:printError("Error occurred while receiving Json payload. Error: " + e.message)
+            };
+
+            log:printDebug("Received JIRA keys response: " + jsonResponse.toString());
+            if (jsonResponse["success"].toString() == "true"){
+                return <string[]>jsonResponse[DATA_COLLECTOR_RESPONSE];
+            } else {
+                string[] keys = [];
+                return keys;
+            }
+        }
+        error e => {
+            log:printError("Failed to fetch JIRA keys from JIRA API. Error: " + e.message);
+            return e;
+        }
+    }
+}
+
 function onCommitJira(string transactionId) {
     log:printInfo("Transaction comitted with transaction ID: " + transactionId);
-    completed = true;
 }
 
 function onAbortJira(string transactionId) {
