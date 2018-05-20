@@ -16,7 +16,7 @@
 // under the License.
 //
 
-//todo: change batch completed_time to updated_time
+//todo: change batch completed_time to updated_time, change column name in DB also
 @final string QUERY_GET_BATCH_STATUS_WITH_LOCK =
 "SELECT uuid, state, completed_time FROM BatchStatus LIMIT 1 FOR UPDATE";
 

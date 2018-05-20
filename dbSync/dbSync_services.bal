@@ -90,10 +90,10 @@ service<http:Service> dataSyncService bind listener {
                         log:printDebug("Getting active JIRA keys from JIRA");
                         match getJiraKeysFromJira() {
                             string[] jiraKeys => {
-                                //syncSfDataForJiraKeys(batchId, jiraKeys);
-                                syncSfDataForJiraKeys(batchId, jiraKeysToBeUpserted);
+                                syncSfDataForJiraKeys(batchId, jiraKeys);
+                                //syncSfDataForJiraKeys(batchId, jiraKeysToBeUpserted);
                             }
-                            error e => log:printError("Error occurred while getting JIRA keys. Error: " + e.message);
+                            error e => log:printError("Error occurred while getting JIRA keys.", err = e);
                         }
                     } else {
                         log:printWarn("Couldn't clear record status table or update IN_PROGRESS state. Aborting");

@@ -162,7 +162,7 @@ function setBatchStatus(string uuid, string status) returns boolean {
             }
         }
         error e => {
-            log:printError("Unable to update BatctStatus in to 'SYNC_REQUEST'");
+            log:printError("Unable to update BatctStatus in to 'SYNC_REQUEST'", err = e);
             return false;
         }
     }
@@ -182,7 +182,7 @@ function addBatchStatus(string uuid, string status) returns boolean {
             }
         }
         error e => {
-            log:printError("Unable to insert BatctStatus: " + status);
+            log:printError("Unable to insert BatctStatus: " + status, err = e);
             return false;
         }
     }

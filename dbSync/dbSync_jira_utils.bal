@@ -84,7 +84,7 @@ function getJiraProjectDetailsFromJira() returns json[]|error {
     match jiraResponse {
         http:Response resp => {
             json jsonResponse = resp.getJsonPayload() but {
-                error e => log:printError("Error occurred while receiving Json payload. Error: " + e.message)
+                error e => log:printError("Error occurred while receiving Json payload.", err = e)
             };
 
             log:printDebug("Received JIRA Project details response: " + jsonResponse.toString());
@@ -98,7 +98,7 @@ function getJiraProjectDetailsFromJira() returns json[]|error {
             }
         }
         error e => {
-            log:printError("Failed to fetch JIRA Project details from JIRA. Error: " + e.message);
+            log:printError("Failed to fetch JIRA Project details from JIRA.", err = e);
             return e;
         }
     }
@@ -111,7 +111,7 @@ function getJiraKeysFromJira() returns string[]|error {
     match jiraResponse {
         http:Response resp => {
             json jsonResponse = resp.getJsonPayload() but {
-                error e => log:printError("Error occurred while receiving Json payload. Error: " + e.message)
+                error e => log:printError("Error occurred while receiving Json payload.", err = e)
             };
 
             log:printDebug("Received JIRA keys response: " + jsonResponse.toString());
@@ -123,7 +123,7 @@ function getJiraKeysFromJira() returns string[]|error {
             }
         }
         error e => {
-            log:printError("Failed to fetch JIRA keys from JIRA API. Error: " + e.message);
+            log:printError("Failed to fetch JIRA keys from JIRA API.", err = e);
             return e;
         }
     }

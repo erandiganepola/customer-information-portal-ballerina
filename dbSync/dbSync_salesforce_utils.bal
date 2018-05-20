@@ -101,7 +101,7 @@ function collectSFData(string[] jiraKeys) returns json[] {
                 error e => log:printError("Error occurred while extracting Json payload", err = e);
             }
         }
-        error e => log:printError("Error occured when fetching data from Salesforce. Error: " + e.message);
+        error e => log:printError("Error occured when fetching data from Salesforce.", err = e);
     }
 
     return results;
@@ -192,7 +192,6 @@ function organizeSfData(string[] jiraKeys, json[] records) returns map {
 
 // Upsert data into Salesforce database tables
 function upsertDataIntoSfDb(map organizedDataMap, string uuid) {
-    //TODO : define string values as SQL params. Take SQL params to another file
     foreach key, value in organizedDataMap{
         log:printDebug("\n");
         log:printInfo("Upserting transaction starting for jira key : " + key);
