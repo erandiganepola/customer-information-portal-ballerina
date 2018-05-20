@@ -20,7 +20,7 @@
 @final string BATCH_STATUS_IN_PROGRESS = "IN_PROGRESS";
 @final string BATCH_STATUS_COMPLETED = "COMPLETED";
 
-@final int BATCH_SIZE = 40;
+@final int BATCH_SIZE = 100;
 
 //==============================================================================================//
 @final int JIRA_KEY_INDEX = 0;

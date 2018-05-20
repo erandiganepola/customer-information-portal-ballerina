@@ -127,10 +127,11 @@ function getBatchStatusWithLock() returns BatchStatus|()|error {
 
 function getRecordStatusWithLock(string jiraKey) returns RecordStatus|()|error {
     RecordStatus|() recordStatus = ();
-    var results = mysqlEP->select(QUERY_GET_RECORD_STATUS_WITH_LOCK, RecordStatus, false, jiraKey);
+    var results = mysqlEP->select(QUERY_GET_RECORD_STATUS_WITH_LOCK, RecordStatus, loadToMemory = false, jiraKey);
     // get record status
     match results {
         table<RecordStatus> entries => {
+            //io:println(<json>entries);
             while (entries.hasNext()){
                 match <RecordStatus>entries.getNext()  {
                     RecordStatus rs => recordStatus = rs;
@@ -290,11 +291,13 @@ function getIncompletedRecordJiraKeys() returns string[] {
     var results = mysqlEP->select(QUERY_GET_INCOMPLETE_JIRA_KEYS, ());
     match results {
         table entries => {
-            int i = 0;
-            while (entries.hasNext()){
-                string k = <string>entries.getNext();
-                jiraKeys[i] = k;
-                i++;
+            match <json>entries {
+                json records => {
+                    foreach record in records {
+                        jiraKeys[lengthof jiraKeys] = record["jira_key"].toString();
+                    }
+                }
+                error e => log:printError("Unable to fetch incomplete records", err = e);
             }
         }
         error e => {
@@ -335,7 +338,7 @@ function upsertRecordStatus(string[] jiraKeys) returns boolean {
 
     transaction with retries = 3, oncommit = onCommit, onabort = onAbort {
         string q = QUERY_BULK_UPSERT_RECORD_STATUS.replace("<ENTRIES>", values);
-        log:printDebug("Record status bulk update: " + q);
+        log:printDebug("Doing record status bulk update: " + (lengthof jiraKeys) + " jira keys");
         var results = mysqlEP->update(q);
         match results {
             int c => {
